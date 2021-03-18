@@ -27,10 +27,9 @@ ENDS_EXTENDS_function <- function(data_measures = COVID_measures_df_REVIEWED,
   
   # reasoning: extends and ends are always time-related, as stated in the data
   #           documentation file
-  
   state_measures <- data_measures %>%
     filter(StateName == state_name,
-           StatePolicy == 'SchoolClose')
+           StatePolicy == policy_measure)
   colnames(state_measures)[1] <- 'PID'
   
   # A brief manipulation for the Ends variable:
@@ -84,11 +83,11 @@ ENDS_EXTENDS_function <- function(data_measures = COVID_measures_df_REVIEWED,
         # in a descending manner by date issued, but since there can be multiple policies issued at
         # one day, etc., this row is needed.
     }
-    state_measures <- state_measures %>%
-      arrange(DateIssued) %>%
-      mutate(begins = DateEnacted,
-             finishes = fifelse(is.na(DateEnded), DateExpiry, DateEnded)) %>%
-      select(-Extends)
-    return(state_measures)
   }
+  state_measures <- state_measures %>%
+    arrange(DateIssued) %>%
+    mutate(begins = DateEnacted,
+           finishes = fifelse(is.na(DateEnded), DateExpiry, DateEnded)) %>%
+    select(-Extends)
+  return(state_measures)
 }
