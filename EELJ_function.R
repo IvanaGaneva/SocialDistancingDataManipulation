@@ -43,9 +43,17 @@ EELJ_function <- function(data_measures = COVID_measures_df_REVIEWED,
            # these are key variables
            ends_with('_ind')) %>%
            # will now add some important variables on the heterogeneity
-    mutate(more_strict = ifelse(Expands_ind + Joins_ind >= 1, 
-                                1, 
-                                ifelse(Eases_ind + Leaves_ind >= 1, 1,NA)),
+    mutate(more_strict = ifelse((Expands_ind + Eases_ind >= 2) | (Joins_ind + Leaves_ind >= 2),
+                                0.5, # i.e. not explicitly stricter nor weaker
+                                ifelse(Expands_ind + Joins_ind >= 1,
+                                       1,
+                                       ifelse(Eases_ind + Leaves_ind >= 1, 0, NA))),
+           # Used to be:
+           # ifelse(Expands_ind + Joins_ind >= 1, 
+           #        1, 
+           #        ifelse(Eases_ind + Leaves_ind >= 1, 0, NA))
+           # - but that is not completely correct always
+           
            # this could never be NA in fact due to the filtering on sum_ind from above
            ch_mandate = NA,
            # if it changes mandate of the policy
@@ -68,70 +76,76 @@ EELJ_function <- function(data_measures = COVID_measures_df_REVIEWED,
            ch_PublicMask_lvl = NA
            # if there are some changes in the above three levels
            )
+  # output_df[is.na(output_df)] <- ''
   
-  for(r in 1:nrow(output_df)){
-    row_in_sm_df <- which(state_measures$PID == output_df$PID[r])
-    related_policies_vec <- paste(state_measures$Expands[row_in_sm_df],
-                                  state_measures$Eases[row_in_sm_df],
-                                  state_measures$Joins[row_in_sm_df],
-                                  state_measures$Leaves[row_in_sm_df],
-                                  sep = ';') %>%
-      str_remove_all(';NA') %>%
-      strsplit(';') %>%
-      unlist()
+  if(nrow(output_df) != 0){
+    # it might be the case that no policies are of either of the join/leave/expand/ease types
+    
+    for(r in 1:nrow(output_df)){
+      row_in_sm_df <- which(state_measures$PID == output_df$PID[r])
+      related_policies_vec <- paste(state_measures$Expands[row_in_sm_df],
+                                    state_measures$Eases[row_in_sm_df],
+                                    state_measures$Joins[row_in_sm_df],
+                                    state_measures$Leaves[row_in_sm_df],
+                                    sep = ';') %>%
+        str_remove_all(';NA') %>%
+        str_remove_all('NA;') %>%
+        strsplit(';') %>%
+        unlist()
       # these are the past policies which are changed by the underlying output_df$PID[r] policy measure
-    
-    results_ch_df <- state_measures[0,] %>%
-      mutate(across(everything(), as.character))
-    for(w in 1:length(related_policies_vec)){
-      temp_df <- state_measures %>%
-        filter(PID == related_policies_vec[w] | PID == output_df$PID[r])
-      temp_df[is.na(temp_df)] <- ''
-      comparing_policies <- as.character(temp_df[1,] == temp_df[2,])
-      results_ch_df[w,] <- comparing_policies
-      # this shows whether there have been changes to the related_policies_vec[w] policy measure in 
-      # all of the aspects we are interested in
-    }
-    
-    results_vec_final <- c()
-    for(o in 1:ncol(results_ch_df)){
-      results_vec_final <- c(results_vec_final, 
-                             ifelse(sum(as.logical(results_ch_df[,o])) == nrow(results_ch_df),
-                                  # i.e. if all are true and there are no changes anywhere
-                                  0,
-                                  1))
-    }
-    names(results_vec_final) <- colnames(results_ch_df)
-    
-    # Now, we are ready to fill the output_df:
-    output_df$ch_mandate[r] <- as.numeric(results_vec_final['Mandate'])
+      
+      results_ch_df <- state_measures[0,] %>%
+        mutate(across(everything(), as.character))
+      for(w in 1:length(related_policies_vec)){
+        temp_df <- state_measures %>%
+          filter(PID == related_policies_vec[w] | PID == output_df$PID[r])
+        temp_df[is.na(temp_df)] <- ''
+        comparing_policies <- as.character(temp_df[1,] == temp_df[2,])
+        results_ch_df[w,] <- comparing_policies
+        # this shows whether there have been changes to the related_policies_vec[w] policy measure in 
+        # all of the aspects we are interested in
+      }
+      
+      results_vec_final <- c()
+      for(o in 1:ncol(results_ch_df)){
+        results_vec_final <- c(results_vec_final, 
+                               ifelse(sum(as.logical(results_ch_df[,o])) == nrow(results_ch_df),
+                                      # i.e. if all are true and there are no changes anywhere
+                                      0,
+                                      1))
+      }
+      names(results_vec_final) <- colnames(results_ch_df)
+      
+      # Now, we are ready to fill the output_df:
+      output_df$ch_mandate[r] <- as.numeric(results_vec_final['Mandate'])
       # for the mandatory lvl
-    output_df$ch_SW[r] <- as.numeric(results_vec_final['StateWide'])
-    output_df$ch_SWGeo[r] <- as.numeric(results_vec_final['SWGeo'])
-    output_df$ch_SWPop[r] <- as.numeric(results_vec_final['SWPop'])
-    output_df$ch_location[r] <- as.numeric(results_vec_final['AppliesTo'])
+      output_df$ch_SW[r] <- as.numeric(results_vec_final['StateWide'])
+      output_df$ch_SWGeo[r] <- as.numeric(results_vec_final['SWGeo'])
+      output_df$ch_SWPop[r] <- as.numeric(results_vec_final['SWPop'])
+      output_df$ch_location[r] <- as.numeric(results_vec_final['AppliesTo'])
       # if there is a change to the state-wide measures in a way
-    output_df$ch_Curfew[r] <- as.numeric(results_vec_final['Curfew'])
-    output_df$ch_CurfewStart[r] <- as.numeric(results_vec_final['CurfewStart'])
-    output_df$ch_CurfewEnd[r] <- as.numeric(results_vec_final['CurfewEnd'])
+      output_df$ch_Curfew[r] <- as.numeric(results_vec_final['Curfew'])
+      output_df$ch_CurfewStart[r] <- as.numeric(results_vec_final['CurfewStart'])
+      output_df$ch_CurfewEnd[r] <- as.numeric(results_vec_final['CurfewEnd'])
       # if there is a change to the curfew measures in a way
-    output_df$ch_InGathLim[r] <- as.numeric(results_vec_final['InGathLim'])
-    output_df$ch_OutGathLim[r] <- as.numeric(results_vec_final['OutGathLim'])
-    output_df$ch_InGathLimRel[r] <- as.numeric(results_vec_final['InGathLimReligious'])
-    output_df$ch_OutGathLimRel[r] <- as.numeric(results_vec_final['OutGathLimReligious'])
+      output_df$ch_InGathLim[r] <- as.numeric(results_vec_final['InGathLim'])
+      output_df$ch_OutGathLim[r] <- as.numeric(results_vec_final['OutGathLim'])
+      output_df$ch_InGathLimRel[r] <- as.numeric(results_vec_final['InGathLimReligious'])
+      output_df$ch_OutGathLimRel[r] <- as.numeric(results_vec_final['OutGathLimReligious'])
       # if there is a change in the gatherings limits of persons
-    output_df$ch_BusinessRestrict_lvl[r] <- as.numeric(results_vec_final['BusinessRestrictLevel'])
-    output_df$ch_SchoolRestrict_lvl[r] <- as.numeric(results_vec_final['SchoolRestrictLevel'])
-    output_df$ch_PublicMask_lvl[r] <- as.numeric(results_vec_final['PublicMaskLevel'])
+      output_df$ch_BusinessRestrict_lvl[r] <- as.numeric(results_vec_final['BusinessRestrictLevel'])
+      output_df$ch_SchoolRestrict_lvl[r] <- as.numeric(results_vec_final['SchoolRestrictLevel'])
+      output_df$ch_PublicMask_lvl[r] <- as.numeric(results_vec_final['PublicMaskLevel'])
       # if there are some changes in the above three levels
+    }
+    
+    output_df <- output_df %>%
+      mutate(sum_changes = output_df %>% select(starts_with('ch_')) %>% rowSums()) %>%
+      mutate(ch_uncoded = ifelse(sum_changes == 0, 1, 0)) %>%
+      # if the changes are not coded within the previous categories and one needs to have a look
+      # at the respective policy measure description within original data
+      select(-starts_with('sum_'))
   }
-          
-  output_df <- output_df %>%
-    mutate(sum_changes = output_df %>% select(starts_with('ch_')) %>% rowSums()) %>%
-    mutate(ch_uncoded = ifelse(sum_changes == 0, 1, 0)) %>%
-    # if the changes are not coded within the previous categories and one needs to have a look
-    # at the respective policy measure description within original data
-    select(-starts_with('sum_'))
 
   return(output_df)
 }
