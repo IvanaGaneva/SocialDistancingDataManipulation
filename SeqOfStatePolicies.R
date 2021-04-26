@@ -14,7 +14,10 @@
 # CREATING A FUNCTION THAT MAKES AN THAT MAKES A SEQUENCE OF TIME-RELATED 
 # POLICIES WITHIN A SINGLE STATE
 
-# NOTE: This is probably the most important function for this set of codes
+# NOTE: This is probably the second most important function for this set of codes
+
+# NOTE, mid-April: bug fixed following the introduction of new variables to the data set
+#                  by the authors
 
 # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -22,28 +25,51 @@ function_seq_of_policies_for_state <- function(data_measures = COVID_measures_df
                                                state_name){
   # This function creates a seq of the policies within each state.
   # Special attention paid to the cases where a policy eases or expands a previous measure.
-  
   state_measures <- data_measures %>%
     filter(StateName == state_name)
-  # filtering out data for this specific state only
+    # filtering out data for this specific state only
   colnames(state_measures)[1] <- 'PID'
   
   vec_PIDs <- state_measures$PID
   # this is a vector of all the PIDs implemented for the state
   
-  state_measures$First_Policy <- apply(state_measures[, 25:30], 
+  cols_indicating_change <- which(colnames(state_measures) %in% c('Extends', 'Expands',
+                                                                  'Eases', 'Ends',
+                                                                  'Joins', 'Leaves'))
+  state_measures$First_Policy <- apply(state_measures[, cols_indicating_change], 
                                        1, 
                                        function(x) all(is.na(x)))
   # checking if the policy does not relate to previous policies
+  # (i.e. if it is the first policy in the chain)
+  
   state_measures <- state_measures %>%
     mutate(First_Policy_YN = ifelse(First_Policy == T, 'Y', NA)) %>%
-    select(-First_Policy) %>%
-    gather(type_of_link, links_to_policy, -c(1:24, 31:39)) %>%
-    select(PID, type_of_link, links_to_policy, everything()) %>%
-    select(-c(4:6, 13:22, 29:35)) %>%
+    select(-First_Policy)
+    # will now gather the data for easier manipulation / brevity
+  cols_not_gather <- which(!(1:ncol(state_measures) %in% cols_indicating_change))
+  cols_not_gather <- cols_not_gather[-length(cols_not_gather)]
+    # these are the cols not participating in the gather -> the ones we are interested in this point
+    # these are the complement of cols indicating change / indicating First Policy
+  state_measures <- state_measures %>%
+    gather(type_of_link, links_to_policy, -all_of(cols_not_gather)) %>%
+    select(PID, type_of_link, links_to_policy, everything())
+    # re-ordering the variables for brevity
+  # Some of the variables here are unneccessary for this part of the data manipulation
+  vars_to_keep_in_sm <- c(1:3,
+                          which(colnames(state_measures) %in% c('StateName', 'StatePolicy',
+                                                                'Mandate', 'StateWide',
+                                                                'SWGeo', 'SWPop',
+                                                                'DateIssued', 'DateEnacted',
+                                                                'DateExpiry', 'DateEnded',
+                                                                'AppliesTo', 'PolicyCodingNotes')))
+  # NOTE: Adhering to names of cols instead of simply using their respective numbers due to an issue
+  #       which arised after the authors of the data decided to add intermediate columns and change
+  #       some variables.
+  state_measures <- state_measures %>%
+    select(all_of(vars_to_keep_in_sm)) %>%
     filter(!(is.na(links_to_policy)))
-  # folding data for simpler use
-  
+  # all in all, folding data for simpler use
+
   policy_chain_df <- state_measures %>%
     filter(links_to_policy == 'Y') %>%
     select(Chain_start = PID,

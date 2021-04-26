@@ -22,6 +22,9 @@ EELJ_function <- function(data_measures = COVID_measures_df_REVIEWED,
   # input: the policy measure and state of interest
   # output: a data frame with the information on expand/ease/leave/join
   #         policies and the heterogeneities mechanically found
+  
+  # Mid-April changes: adding the heterogeneity in the Vaccine variable
+  #                    (which has just been introduced to the data set by the authors)
 
   state_measures <- ENDS_EXTENDS_function(state_name = state_name,
                                           policy_measure = policy_measure)
@@ -73,8 +76,10 @@ EELJ_function <- function(data_measures = COVID_measures_df_REVIEWED,
            # if there is a change in the gatherings limits of persons
            ch_BusinessRestrict_lvl = NA,
            ch_SchoolRestrict_lvl = NA,
-           ch_PublicMask_lvl = NA
+           ch_PublicMask_lvl = NA,
            # if there are some changes in the above three levels
+           ch_VaccineExempt = NA
+           # this was added mid-April: new variable to the data set
            )
   # output_df[is.na(output_df)] <- ''
   
@@ -137,6 +142,8 @@ EELJ_function <- function(data_measures = COVID_measures_df_REVIEWED,
       output_df$ch_SchoolRestrict_lvl[r] <- as.numeric(results_vec_final['SchoolRestrictLevel'])
       output_df$ch_PublicMask_lvl[r] <- as.numeric(results_vec_final['PublicMaskLevel'])
       # if there are some changes in the above three levels
+      output_df$ch_VaccineExempt[r] <- as.numeric(results_vec_final['VaccineExempt'])
+      # changes in the vaccine exemption for the policy measure
     }
     
     output_df <- output_df %>%

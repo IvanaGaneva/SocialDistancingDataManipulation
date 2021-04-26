@@ -39,37 +39,30 @@
 
 EmergDec_function_for_state <- function(data_measures = COVID_measures_df_REVIEWED,
                                         state_name){
+  
   df_state_var <- function_empty_df_for_state(state_name = state_name) %>%
     # this will be the data frame to fill
     mutate(EmergDec = 0)
-  
-  state_measures <- data_measures %>%
-    filter(StateName == state_name,
-           StatePolicy == 'EmergDec',
-           Mandate == 1) %>%
-    select(1, 21:25)
-    # these are the measures for the respective state and the respective dates of enactions/expiry
-  colnames(state_measures)[1] <- 'PID'
-    # renaming the first col for simpler use in the future
-  
+
   # NOTE: see the main code file for reasoning/proof that this measure is state-wide
   #       and why it will be applied to all counties where seen
   
   beginnings_and_ends <- function_seq_of_policies_for_state(state_name = state_name) %>%
-    filter(End_Date_Obtained == 'TRUE', Initial_policy == 'EmergDec')
+    filter(End_Date_Obtained == 'TRUE', 
+           Initial_policy == 'EmergDec')
   
-  if(nrow(bbeginnings_and_ends) != 0){
+  if(nrow(beginnings_and_ends) != 0){
     dates_active_policy <- setDT(beginnings_and_ends)[, .(DateActive = seq(Start_act, 
                                                                            End_act_or_exp, 
                                                                            by = 'day')),
-                                                 by = Chain_start] 
+                                                      by = Chain_start] 
     # these are the dates the policy was active
   }
   
   df_state_var$EmergDec[df_state_var$Date %in% dates_active_policy$DateActive] <- 1
-    # filling state-wide
+  # filling state-wide
   
   return(df_state_var)
-    # returns a data frame wchich can be transformed to wide format with a single line of code
-    # EmergDec takes a value of 1 if the policy was active at the time and 0 otherwise
+  # returns a data frame wchich can be transformed to wide format with a single line of code
+  # EmergDec takes a value of 1 if the policy was active at the time and 0 otherwise
 }

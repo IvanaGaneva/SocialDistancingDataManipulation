@@ -2,7 +2,7 @@
 # Ganeva, I.K.
 # Covid 19 State Policy Data Cleaning, Exploration & Implementation of 
 # Hand-Made Functions for the Construction of a Set of Local Metrics
-# Feb-Mar, 2021
+# Feb-Apr, 2021
 
 # __________________________________________________________________________
 # Nancy Fullman, Bree Bang-Jensen, Grace Reinke, Beatrice Magistro,          
@@ -32,6 +32,9 @@ library(rvest)                                           # for scraping data
 # 0.3. Clearing the workspace environment
 rm(list = ls())
 gc()
+# quicker loading of the environment:
+# ----------------------------------
+load('Environment_uptil_EELJ_26_Apr.RData')
 
 # __________________________________________________________________________
 # 1. LOADING THE DATA:
@@ -39,6 +42,7 @@ gc()
 # 1.1. Extracting the data
 file_name <- 'https://raw.githubusercontent.com/COVID19StatePolicy/SocialDistancing/master/data/USstatesCov19distancingpolicyBETA.csv'
     # Obtaining the file directly from the parent directory (so as to be as up to date as possible)
+    # There are 14,388 observations as of Apr, 14
 COVID_measures_df <- read.csv(url(file_name))
     # Removing the file location
 rm(file_name)
@@ -128,38 +132,39 @@ length(unique(COVID_measures_df$StatePolicy))
   # (as indicated in the data documentation pdf)
 # --------------------------------------------------------------------------
 # 2.4. Selecting only data which is available at the county-level
-# # [as of 01/03/2021]
+# # [as of 14/04/2021]
 COVID_measures_df %>%
   filter(!(is.na(AppliesTo))) %>%
   nrow()
-  # There are 4,142 rows (out of the initial 11,892) to include explicit information for counties
+  # There are 5,542 rows (out of the initial 14,388) to include explicit information for counties
   # However, there are measures that apply to all counties (state-wide geo measures, SWGeo == 1)!
 COVID_measures_df %>%
   filter(!(is.na(AppliesTo)) | SWGeo == 1) %>%
   nrow()
-  # Allowing for policy measures that apply to all counties, too, we have 11,478 entries from the 
+  # Allowing for policy measures that apply to all counties, too, we have 14,143 entries from the 
   # original data set
 COVID_measures_df %>%
   filter(ReReviewed == 1) %>%
   nrow()
-# There are 9,773 rows (out of the initial 11,892) to have been re-reviewed
+# There are 13,334 rows (out of the initial 14,388) to have been re-reviewed
 COVID_measures_df %>%
   filter(ReReviewed == 1 & (!(is.na(AppliesTo)) | SWGeo == 1)) %>%
   nrow()
-  # From the re-reviewed data, there are 9,758 out of the 9,773 rows to include some information 
+  # From the re-reviewed data, there are 13,315 out of the 13,334 rows to include some information 
   # on the county-level.
-View(filter(COVID_measures_df,
-            ReReviewed == 1 & is.na(AppliesTo) & SWGeo != 1))
-  # There are 15 entries for which a review of data has been made, but neither SWGeo holds,
+# View(filter(COVID_measures_df, ReReviewed == 1 & is.na(AppliesTo) & SWGeo != 1))
+  # There are 19 entries for which a review of data has been made, but neither SWGeo holds,
   # nor is AppliesTo present -> yet these measures all appear to affect the whole state population
   # so they also convey info on the state-level!
 COVID_measures_df_REVIEWED <- COVID_measures_df %>%
   filter(ReReviewed == 1)
   # filtering out non-reviewed entries to make work cleaner and cohesive
-  # this leaves us with 9,773 observations of 39 variables
+  # this leaves us with 14,388 observations of 40 variables
   # * * * 
   # also, there are only 16 state policy variables considered there as discussed in the
   # data documentation pdf
+  # to see this, run:
+  # length(unique(COVID_measures_df_REVIEWED$StatePolicy))
 # --------------------------------------------------------------------------
 # 2.5. Saving these two files into the working directory for simpler loading in the future
 save(counties_df, states_df, COVID_measures_df, COVID_measures_df_REVIEWED,
@@ -180,6 +185,8 @@ save(counties_df, states_df, COVID_measures_df, COVID_measures_df_REVIEWED,
 # 3. LOADING THE FUNCTION THAT MAKES AN EMPTY DATA FRAME FOR EACH STATE:
 # --------------------------------------------------------------------------
 source('EmptyDfForState.R')
+# testing if it works: (it does as of Apr, 14)
+# test_empty_df <- function_empty_df_for_state(state_name = 'California', long = F)
 # --------------------------------------------------------------------------
 
 
@@ -195,12 +202,13 @@ source('EmptyDfForState.R')
 source('SeqOfStatePolicies.R')
 # NOTICE: Specific attention on the Ends-type of policy and the DateEnded
 nrow(filter(COVID_measures_df_REVIEWED, !(is.na(DateEnded))))
-  # there are 985 instances of policies where the date ended is present
+  # there are 2520 instances of policies where the date ended is present
 nrow(filter(COVID_measures_df_REVIEWED, !(is.na(Ends))))
-  # and only 356 instances of policies where there is an explicit policy
+  # and only 643 instances of policies where there is an explicit policy
   # that ends a previous one
 
 all_states_considered <- unique(COVID_measures_df_REVIEWED$StateName)
+  # these are the 51 'states': 50 states + the Fed. District of Columbia
 POLICY_CHAINS_all_states_df <- function_seq_of_policies_for_state(state_name = all_states_considered[1])
   # this is for Alabama only
 for(i in 2:length(all_states_considered)){
@@ -211,7 +219,8 @@ POLICY_CHAINS_all_states_df <- POLICY_CHAINS_all_states_df %>%
   mutate(StatePostal = str_sub(Chain_start, start = 1L, end = 2L)) %>%
   select(StatePostal, everything())
 length(unique(POLICY_CHAINS_all_states_df$StatePostal))
-  # 43 states, as expected!
+  # 51 states, as expected!
+  # as opposed to the 43 states present in the data in March
 save(POLICY_CHAINS_all_states_df, file = 'saved_policy_chains_all_states.RData')
   # saving for future use / faster extraction
 # load('saved_policy_chains_all_states.RData')
@@ -250,14 +259,88 @@ source('ENDS_EXTENDS_function.R')
 #                   0 if it is an easing/leave policy measure
 #    o changes in mandate / state-wide measures / curfew hours / 
 source('EELJ_function.R')
+
+# creating a large df with the result from applying this function on all 
+# possible states/measures separately (then rbind):
+# --- last done 26/04/2021
+# --- uncomment lines below to re-run:
+
+# first_state_df <- COVID_measures_df_REVIEWED$StateName[1]
+# first_policy_df <- COVID_measures_df_REVIEWED$StatePolicy[1]
+# 
+# EELJ_all_states_policies_df <- EELJ_function(state_name = first_state_df,
+#                                              policy_measure = first_policy_df)
+# 
+# for(p in unique(COVID_measures_df_REVIEWED$StatePolicy)[-1]){
+#   temp_eelj_df <- EELJ_function(state_name = first_state_df,
+#                                 policy_measure = p)
+#   if((nrow(EELJ_all_states_policies_df) != 0) & nrow(temp_eelj_df) != 0){
+#     EELJ_all_states_policies_df <- rbind(EELJ_all_states_policies_df,
+#                                            temp_eelj_df)
+#   } else{
+#       if(nrow(temp_eelj_df) != 0){
+#         EELJ_all_states_policies_df <- temp_eelj_df
+#       }
+#     }
+#   rm(temp_eelj_df)
+# }
+# # this gives the df for Alabama and all possible policy measures
+# # as of mid-April, there are 25 observations on 25 var-s
+# 
+# # Adding the remaining states/policies combinations:
+# for(i in unique(COVID_measures_df_REVIEWED$StateName)[-1]){
+#   for(j in unique(COVID_measures_df_REVIEWED$StatePolicy)){
+#     temp_eelj_df <- EELJ_function(state_name = i,
+#                                   policy_measure = j)
+#     if(nrow(temp_eelj_df) != 0){
+#       EELJ_all_states_policies_df <- rbind(EELJ_all_states_policies_df,
+#                                            temp_eelj_df)
+#     }
+#     rm(temp_eelj_df)
+#   }
+# }
+# 
+# rm(first_state_df, first_policy_df, i, j, p)
+# gc()
+# 
+# # Saving the data frame for future use:
+# save(EELJ_all_states_policies_df,
+#      file = 'saved_EELJ_all_states_policies.RData')
+# 
+# # environment saved up until here:
+# # save.image(file = 'Environment_uptil_EELJ_26_Apr.RData')
+
+
+# Some EDA for the EELJ df which captures heterogeneity across policy measures:
+EELJ_all_states_policies_df %>%
+  filter(ch_uncoded == 1) %>%
+  nrow()
+  # there are 581 out of all 4,166 rows in the EELJ df which capture some uncoded
+  # changes -> need to be looked at manually one-by-one depending on policy coding
+  #            notes
+
+# 86% of data could be manipulated automatically using the FILL_function sourced
+# and introduced below.
+
+
 # --------------------------------------------------------------------------
 
 
 # __________________________________________________________________________
-# 7. CREATING THE DUMMY VARIABLES FOR EACH MANDATORY STATE POLICY OVER TIME 
+# 7. ADDING THE POLICY TYPE FUNCTION/CHUNK OF CODE:
+# --------------------------------------------------------------------------
+source('PolicyType.R')
+# works for the 16 policy measure variables as of mid-April, 2021
+
+# --------------------------------------------------------------------------
+
+
+# __________________________________________________________________________
+# 8. CREATING THE DUMMY VARIABLES FOR EACH MANDATORY STATE POLICY OVER TIME 
 #    BY COUNTIES:
 # --------------------------------------------------------------------------
-# 7.1. EmergDec
+# 8.1. EmergDec
+# 8.1.1. Some EDA for this variable
 COVID_measures_df_REVIEWED %>%
   filter(StatePolicy == 'EmergDec', !(is.na(AppliesTo))) %>%
   nrow()
@@ -277,9 +360,21 @@ COVID_measures_df_REVIEWED %>%
   nrow()
   # two cases of expansion of the policy in the data set -> these are extreme
   # or disaster & emergency declarations
+
+# 8.1.2. Loading the function which generates the data frames for each state
 source('EmergDec.R')
   # loading the function that obtains the mandatory EmergDec dummy variable 
   # value
+
+# NOTE: For the remaining 15 state policy measures, will rely on the generalized 
+#       FILL_function.
+#      - in fact, it can also be used with EmergDec, but it has been considered
+#        a separate case (seen above) for brevity
+
+# 8.2. Remaining 15 Policy Measures
+
+# - Please, kindly refer to FILL_function: under construction.
+
 # --------------------------------------------------------------------------
 
 
