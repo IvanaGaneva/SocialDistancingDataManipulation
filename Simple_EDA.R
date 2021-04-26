@@ -49,6 +49,14 @@ simple_EDA_fun <- function(main_df){
                                 100*nrow(filter(temp_df, StateWide == 0, !is.na(AppliesTo)))/nrow(filter(temp_df, StateWide == 0)))
     
     # Filling the output_df:
+    loc <- which(output_df$StatePolicy == sp)
+    output_df$Mandatory_perc[loc] <- Mandatory_perc
+    output_df$SW_perc[loc] <- SW_perc
+    output_df$Non_SW_present[loc] <- Non_SW_present
+    output_df$AppliesTo_present_perc[loc] <- AppliesTo_present
     
+    rm(Mandatory_perc, SW_perc, Non_SW_present, AppliesTo_present)
   }
+  
+  return(output_df)
 }

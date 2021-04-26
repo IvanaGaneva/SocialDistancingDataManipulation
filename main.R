@@ -372,6 +372,10 @@ source('EmergDec.R')
 #        a separate case (seen above) for brevity
 
 # 8.2. Remaining 15 Policy Measures
+df_EDA <- simple_EDA_fun(main_df = COVID_measures_df_REVIEWED)
+  # This gives some insigth on the overall behaviour of the policy measures and 
+  # where different types of dimensions are present
+  # (thus simplifying where to look for heterogeneity)
 
 # - Please, kindly refer to FILL_function: under construction.
 
