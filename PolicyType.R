@@ -27,7 +27,7 @@ policy_type_function <- function(policy_measure){
                            'TravelRestrictExit', 'NEBusinessClose', 'TravelRestrictIntra',
                            'TravelRestrictEntry')
   policy_types_df[,2] <- c('bin', 'cat_sch', 'cat_bus', 'numb',
-                           'cat_bus', 'cat_bus', 'bin', 'bin_rec',
+                           'cat_bus', 'cat_bus', 'bin', 'bin',
                            'cat_mand', rep('bin', 4),
                            'cat_bus', rep('bin', 2))
   
@@ -37,7 +37,7 @@ policy_type_function <- function(policy_measure){
     usual_no_restr_value_df <- data.frame(PolicyType = c('bin', 'cat_sch', 'cat_bus',
                                                          'numb', 'bin_rec', 'cat_mand'),
                                           UsualValue = c('0', 'InPersonAllowed', 'IndoorAllowed',
-                                                         '999999', 'NotMentioned', 'NotMentioned'))
+                                                         '999999', '0', 'NotMentioned'))
     
     usual_value <- usual_no_restr_value_df$UsualValue[usual_no_restr_value_df$PolicyType == type_of_this_measure]
   } else{

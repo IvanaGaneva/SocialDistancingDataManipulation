@@ -160,17 +160,26 @@ COVID_measures_df_REVIEWED <- COVID_measures_df %>%
   filter(ReReviewed == 1)
   # filtering out non-reviewed entries to make work cleaner and cohesive
   # this leaves us with 14,388 observations of 40 variables
-  # * * * 
+  # * * *
   # also, there are only 16 state policy variables considered there as discussed in the
   # data documentation pdf
   # to see this, run:
   # length(unique(COVID_measures_df_REVIEWED$StatePolicy))
 # --------------------------------------------------------------------------
-# 2.5. Saving these two files into the working directory for simpler loading in the future
+# 2.5. Making a couple of further small manipulations to the data:
+# Ends and extends typically refer to changes in the value of the policy measure
+# and not in any other dimensions (like location). However, this does not hold for the
+# case where a policy ends for specific locations only! Will change this to facilitate the
+# coding of the Ends-Extends function.
+
+
+
+# --------------------------------------------------------------------------
+# 2.6. Saving these two files into the working directory for simpler loading in the future
 save(counties_df, states_df, COVID_measures_df, COVID_measures_df_REVIEWED,
      file = 'saved_data_frames.RData')
 # --------------------------------------------------------------------------
-# 2.6. Loading the data directly
+# 2.7. Loading the data directly
 # WARNING: this does not guarantee up-to-date information, one needs to check the date of the file
 #          beforehand and if it falls before an update noted on the GitHub source folder,
 #          better to run the above codes instead to ensure completeness of data at this point of time
@@ -376,6 +385,33 @@ df_EDA <- simple_EDA_fun(main_df = COVID_measures_df_REVIEWED)
   # This gives some insigth on the overall behaviour of the policy measures and 
   # where different types of dimensions are present
   # (thus simplifying where to look for heterogeneity)
+
+EELJ_all_states_policies_df %>%
+  filter(ch_SWPop == 1) %>%
+  nrow()
+  # there are only 15 rows where changes in population occur
+COVID_measures_df_REVIEWED %>%
+  filter(SWPop == 0) %>%
+  nrow()
+  # 233 rows from the 13,334 observations of the original table
+
+# ---> these need to be checked manually as the changes are coded within the policy coding notes
+
+# IMPORTANT NOTE:
+# Heterogeneity arises on multiple dimensions!
+# --- these can be found in the 9:25 columns (totalling 17) in the EELJ
+#     large df -> the columns which start with ch_
+
+# --- THESE WILL BE GROUPED INTO 5 CATEGORIES FOR BREVITY:
+#     o TIME CHANGES [related to the three ch_curfew variables]
+#     o LOCATION CHANGES
+#     o GROUPS OF POPULATION AFFECTED CHANGES 
+#       [vaccinated vs. not considered only - see argument above]
+#     o LIMITS OF PPL GATHERINGS
+#     o MANDATORY OR NOT
+
+# For these 5 groups of heterogeneity considered, loading the 5 auxiliary functions:
+
 
 # - Please, kindly refer to FILL_function: under construction.
 
