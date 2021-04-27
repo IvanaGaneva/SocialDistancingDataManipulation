@@ -35,10 +35,13 @@ FILL_function <- function(data_measures = COVID_measures_df_REVIEWED,
                           state_name,
                           policy_measure){
   
+  # for construction/testing:
   data_measures <- COVID_measures_df_REVIEWED
   county_data <- counties_df
   state_name <- 'Alabama'
-  policy_measure <- 'PublicMask'
+  policy_measure <- 'SchoolClose'
+  # -------------------------------------------
+  
   
   policy_type_usual_value <- policy_type_function(policy_measure)
   policy_type <- policy_type_usual_value[1]
@@ -61,7 +64,7 @@ FILL_function <- function(data_measures = COVID_measures_df_REVIEWED,
                                              NA)) %>%
       # filling the policy_measure_var with the 'usual' no-restrictions value
       # according to the policy_measure_type
-    
+      
       # first and second policy measure variables are needed for StatePolicy == 'SchoolClose'
       # where the policy measure carries (implicit) information about the closure of Public (main)
       # and Private schools (secondary variable)
@@ -70,8 +73,8 @@ FILL_function <- function(data_measures = COVID_measures_df_REVIEWED,
              lim_in_general = NA, lim_out_general = NA,
              lim_in_rel = NA, lim_out_rel = NA,
              mandate = NA)
-      # note that the location variable does not require a separate column/variable, but will be 
-      # instead captured within the rows of the df_to_fill
+    # note that the location variable does not require a separate column/variable, but will be 
+    # instead captured within the rows of the df_to_fill
     
     policy_state_changes <- EELJ_function(data_measures = data_measures,
                                           state_name = state_name,
@@ -80,124 +83,53 @@ FILL_function <- function(data_measures = COVID_measures_df_REVIEWED,
                                                      state_name = state_name,
                                                      policy_measure = policy_measure)
     
+    # Filling for the uncoded policy measures for the PublicMask variable:
+    if(policy_type == 'cat_mand'){
+      policy_state_simplified$PublicMaskLevel[policy_state_simplified$Mandate != 1 & 
+                                                is.na(policy_state_simplified$PublicMaskLevel)] <- 'Special_Recommend'
+    }
+    # i.e. advised to wear masks but not in general settings, but in rather more special occasions
+    #      which are uncoded under the cat_mand type of variable
+    
     if(nrow(policy_state_simplified) != 0){
+      policy_state_simplified <- policy_state_simplified %>%
+        arrange(DateIssued)
+      # Arranging by date issued.
+      
       # ---------------------------- STEP I ----------------------------------
       # Starting from the first observation in the policy_state_simplified df:
       # filling the time/vaccine/lim-s/mandate/location dimensions
-    
-      first_policy_dates <- seq(policy_state_simplified$begins[1],
-                                policy_state_simplified$finishes[1],
-                                by = 'days')
-      last_day_first_policy <- policy_state_simplified$finishes[1]
-      first_day_first_policy <- first_policy_dates[1]
-      
-      df_to_fill$perc_usual_time[df_to_fill$Date < first_day_first_policy] <- 'All the time'
-      df_to_fill$only_non_vaccinated_ppl[df_to_fill$Date < first_day_first_policy] <- 0
-      df_to_fill[df_to_fill$Date < first_day_first_policy, 8:11] <- 'No limit'
-      df_to_fill$mandate[df_to_fill$Date < first_day_first_policy] <- 1
-      
-      if(policy_state_simplified$SWGeo[1] == 1){
-        counties_to_fill_vec <- unique(as.character(df_to_fill$County))
-      } else{
-        counties_to_fill_vec <- unlist(str_split(policy_state_simplified$AppliesTo[1],
-                                                 ', '))
-      }
-      
-      not_vec <- c(NA, 0)
-      which_loc_date_vec <- which((df_to_fill$County %in% counties_to_fill_vec) &
-                                    (df_to_fill$Date %in% first_policy_dates))
-      
-      # Adding the time dimension:
-      if(policy_state_simplified$Curfew[1] %in% not_vec){
-        df_to_fill$perc_usual_time[which_loc_date_vec] <- 'All the time'
-      } else{
-        df_to_fill$perc_usual_time[which_loc_date_vec] <- paste0('From ',
-                                                                 policy_state_simplified$CurfewStart[1],
-                                                                 ' to ',
-                                                                 policy_state_simplified$CurfewEnd[1])
-      }
-      
-      # Ading the vaccinated people dimension:
-      if(policy_state_simplified$VaccineExempt[1] %in% not_vec){
-        df_to_fill$only_non_vaccinated_ppl[which_loc_date_vec] <- 0
-      } else{
-        df_to_fill$only_non_vaccinated_ppl[which_loc_date_vec] <- 1
-      }
-      
-      # Adding the mandatory or not dimension:
-      if(policy_state_simplified$Mandate[1] %in% not_vec){
-        df_to_fill$mandate[which_loc_date_vec] <- 0
-      } else{
-        df_to_fill$mandate[which_loc_date_vec] <- 1
-      }
-      
-      # Adding the gathering limits dimension:
-      # - for inside general gath
-      if(is.na(policy_state_simplified$InGathLim[1])){
-        df_to_fill$lim_in_general[which_loc_date_vec] <- 'No limit'
-      } else{
-        df_to_fill$lim_in_general[which_loc_date_vec] <- policy_state_simplified$InGathLim[1]
-      }
-      # - for outside general gath
-      if(is.na(policy_state_simplified$OutGathLim[1])){
-        df_to_fill$lim_out_general[which_loc_date_vec] <- 'No limit'
-      } else{
-        df_to_fill$lim_out_general[which_loc_date_vec] <- policy_state_simplified$OutGathLim[1]
-      }
-      # - for inside religious gath
-      if(is.na(policy_state_simplified$InGathLimReligious[1])){
-        df_to_fill$lim_in_rel[which_loc_date_vec] <- 'No limit'
-      } else{
-        df_to_fill$lim_in_rel[which_loc_date_vec] <- policy_state_simplified$InGathLimReligious[1]
-      }
-      # - for outside religious gath
-      if(is.na(policy_state_simplified$OutGathLimReligious[1])){
-        df_to_fill$lim_out_rel[which_loc_date_vec] <- 'No limit'
-      } else{
-        df_to_fill$lim_out_rel[which_loc_date_vec] <- policy_state_simplified$OutGathLimReligious[1]
-      }
-      
-      # ---------------------------- STEP II ----------------------------------
+      #                                &
+      # # ----------------------=--- STEP II ---------------------------------
       # Continuing to work with the first observation in the policies df:
-      # depending on the type of policy and extend/ease/join/leave var-s
-      if(policy_type == 'cat_sch'){
-        df_to_fill$policy_measure_var_main[which_loc_date_vec] <- policy_state_simplified$SchoolRestrictLevel[1]
-        if(str_detect(policy_state_simplified$PolicyCodingNotes[1], 'private')){
-          df_to_fill$policy_measure_var_sec[which_loc_date_vec] <- policy_state_simplified$SchoolRestrictLevel[1]
-        }
-      } else{
-        if(policy_type == 'bin'){
-          df_to_fill$policy_measure_var_main[which_loc_date_vec] <- 1
-          # this is the first policy introduced => cannot be easing of the original values
-        } else{
-          if(policy_type == 'cat_bus'){
-            df_to_fill$policy_measure_var_main[which_loc_date_vec] <- policy_state_simplified$BusinessRestrictLevel[1]
-          } else{
-            if(policy_type == 'numb'){
-              df_to_fill$policy_measure_var_main[which_loc_date_vec] <- 'GathRestrict: see limit var-s'
-            } else{
-              if(policy_type == 'cat_mand'){
-                
-                if(is.na(policy_state_simplified$PublicMaskLevel[1])){
-                  df_to_fill$policy_measure_var_main[which_loc_date_vec] <- 'Special_Occasions'
-                  # i.e. advised to wear masks but not in general settings, but in rather more special occasions
-                  #      which are uncoded under the cat_mand type of variable
-                } else{
-                  df_to_fill$policy_measure_var_main[which_loc_date_vec] <- policy_state_simplified$PublicMaskLevel[1]
-                }
-              }
-            }
-          }
-        }
-      }
-      # 
-      # # ---------------------------- STEP III ---------------------------------
-      # # Continuing to fill for the remaining entries in the policy state df:
-      # rn_ps_df <- nrow(policy_state_simplified)
-      # if(nrow(policy_state_simplified) != 1){
-      #   
-      # }
+      # depending on the type of policy (5 broad categories of variables)
+      # [And doing the same thing for each beginning of a new policy chain.]
+      starting_policies <- setdiff(policy_state_simplified$PID, policy_state_changes$PID)
+        # will be running the auxiliary function for the beginnings of chains on these policy measures
       
+      if(length(starting_policies) == 0){
+        return('Check data inputs - no starting policies in this policy chain!')
+        # Ideally, if there are no data input mistakes, this should not occur!
+      } else{
+        for(ps in starting_policies){
+          df_to_fill <- aux_fun_chains_START_fill(starting_policy = ps)
+          # updating the data frame to fill to match the starting policies
+        }
+
+        
+        # ---------------------------- STEP III ---------------------------------
+        # Continuing to fill for the remaining entries in the policy state df:
+        rn_ps_df <- nrow(policy_state_simplified)
+        # if(nrow(policy_state_simplified) != 1){
+        #   for(r in 2:rn_ps_df){
+        #     
+        #   }
+        # }
+        
+        
+        # return(df_to_fill)
+      }
+
     }
     
     
@@ -209,4 +141,3 @@ FILL_function <- function(data_measures = COVID_measures_df_REVIEWED,
   
   
 }
-  
