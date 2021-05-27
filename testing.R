@@ -59,11 +59,10 @@ test_eelj <- EELJ_function(state_name = 'California', policy_measure = 'SchoolCl
 
 source('PolicyType.R')
 
-
 source('EmergDec.R')
 # obtains the mandatory EmergDec dummy variable value
 test_EmergDec <- EmergDec_function_for_state(state_name = 'Alabama')
 
-
-
+source('Simple_EDA.R')
+test_EDA <- simple_EDA_fun(main_df = COVID_measures_df_REVIEWED)
 

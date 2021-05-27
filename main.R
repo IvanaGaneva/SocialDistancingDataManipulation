@@ -32,9 +32,9 @@ library(rvest)                                           # for scraping data
 # 0.3. Clearing the workspace environment
 rm(list = ls())
 gc()
-# quicker loading of the environment:
+# quicker loading of the environment - up until section 6. included
 # ----------------------------------
-load('Environment_uptil_EELJ_26_Apr.RData')
+# load('Environment_uptil_EELJ_27_May.RData')
 
 # __________________________________________________________________________
 # 1. LOADING THE DATA:
@@ -62,6 +62,10 @@ counties_df <- as.data.frame(html_table(tables_html[1], fill = T)) %>%
          Population2019 = Population..2019.estimate.)
     # The latter object gives us the counties by state
     # (and conveniently, the Wiki reports of their population according to the US Census Bureau)
+
+# NOTICE: The state of Hawaii is written as Hawaiʻi, renaming it to avoid issues in the future:
+counties_df$State[counties_df$State == 'Hawaiʻi'] <- 'Hawaii'
+
 rm(html_counties, tables_html)
 gc()
     # Cleaning the workspace from the auxiliary objects
@@ -211,9 +215,9 @@ source('EmptyDfForState.R')
 source('SeqOfStatePolicies.R')
 # NOTICE: Specific attention on the Ends-type of policy and the DateEnded
 nrow(filter(COVID_measures_df_REVIEWED, !(is.na(DateEnded))))
-  # there are 2520 instances of policies where the date ended is present
+  # there are 4372 instances of policies where the date ended is present
 nrow(filter(COVID_measures_df_REVIEWED, !(is.na(Ends))))
-  # and only 643 instances of policies where there is an explicit policy
+  # and only 787 instances of policies where there is an explicit policy
   # that ends a previous one
 
 all_states_considered <- unique(COVID_measures_df_REVIEWED$StateName)
@@ -271,7 +275,7 @@ source('EELJ_function.R')
 
 # creating a large df with the result from applying this function on all 
 # possible states/measures separately (then rbind):
-# --- last done 26/04/2021
+# --- last done 27/05/2021
 # --- uncomment lines below to re-run:
 
 # first_state_df <- COVID_measures_df_REVIEWED$StateName[1]
@@ -317,18 +321,18 @@ source('EELJ_function.R')
 #      file = 'saved_EELJ_all_states_policies.RData')
 # 
 # # environment saved up until here:
-# # save.image(file = 'Environment_uptil_EELJ_26_Apr.RData')
+# # save.image(file = 'Environment_uptil_EELJ_27_May.RData')
 
 
 # Some EDA for the EELJ df which captures heterogeneity across policy measures:
 EELJ_all_states_policies_df %>%
   filter(ch_uncoded == 1) %>%
   nrow()
-  # there are 581 out of all 4,166 rows in the EELJ df which capture some uncoded
+  # there are 729 out of all 4,743 rows in the EELJ df which capture some uncoded
   # changes -> need to be looked at manually one-by-one depending on policy coding
-  #            notes
+  #            notes (potentially)
 
-# 86% of data could be manipulated automatically using the FILL_function sourced
+# 85% of data could be manipulated automatically using the FILL_function sourced
 # and introduced below.
 
 
@@ -339,52 +343,71 @@ EELJ_all_states_policies_df %>%
 # 7. ADDING THE POLICY TYPE FUNCTION/CHUNK OF CODE:
 # --------------------------------------------------------------------------
 source('PolicyType.R')
-# works for the 16 policy measure variables as of mid-April, 2021
+# works for the 16 policy measure variables as of mid-May, 2021
 
+# --------------------------------------------------------------------------
+
+# __________________________________________________________________________
+# 8. SOME EDA FOR THE HETEROGENEITY IN THE ABOVE POLICY MEASURES:
+# --------------------------------------------------------------------------
+source('Simple_EDA.R')
+df_EDA <- simple_EDA_fun(main_df = COVID_measures_df_REVIEWED)
+# works for the 16 policy measure variables as of mid-May, 2021
+# shows the percentage of instances for each policy, where
+#   o the instances are mandatory
+#   o the instances are applied to state-wide
+#   o % of the non-state-wide cases with info on the locality of the measure
+
+# One can notice that in 100% of the cases for the EmergDec variable,
+# the policy applies to the whole state, and is always mandatory.
+#   o As expected, no instances of this policy at the county level;
+#   o Further, no cases of easing this policy:
+COVID_measures_df_REVIEWED %>%
+  filter(StatePolicy == 'EmergDec', !(is.na(Eases))) %>%
+  nrow()
+#   o Two cases of expansion of the policy in the data set:
+#     these represent extreme/disaster emergency declarations
+COVID_measures_df_REVIEWED %>%
+  filter(StatePolicy == 'EmergDec', !(is.na(Expands))) %>%
+  nrow()
+
+# Following the above EDA on the EmergDec policy measure, a simple function 
+# has been designated for it to obtain the final resp. data frame. 
+# [see next section]
 # --------------------------------------------------------------------------
 
 
 # __________________________________________________________________________
-# 8. CREATING THE DUMMY VARIABLES FOR EACH MANDATORY STATE POLICY OVER TIME 
+# 9. CREATING THE DUMMY VARIABLES FOR EACH MANDATORY STATE POLICY OVER TIME 
 #    BY COUNTIES:
 # --------------------------------------------------------------------------
 # 8.1. EmergDec
-# 8.1.1. Some EDA for this variable
-COVID_measures_df_REVIEWED %>%
-  filter(StatePolicy == 'EmergDec', !(is.na(AppliesTo))) %>%
-  nrow()
-  # as discussed in the data documentation file, this is a state-wide policy
-  # measure and there are no cases where the policy applies to specific
-  # counties only (as expected)
-COVID_measures_df_REVIEWED %>%
-  filter(StatePolicy == 'EmergDec', StateWide != 1) %>%
-  nrow()
-  # further proof on the above statement
-COVID_measures_df_REVIEWED %>%
-  filter(StatePolicy == 'EmergDec', !(is.na(Eases))) %>%
-  nrow()
-  # zero eases of this policy in the data set (as of March, 1st)
-COVID_measures_df_REVIEWED %>%
-  filter(StatePolicy == 'EmergDec', !(is.na(Expands))) %>%
-  nrow()
-  # two cases of expansion of the policy in the data set -> these are extreme
-  # or disaster & emergency declarations
-
-# 8.1.2. Loading the function which generates the data frames for each state
+#      [Loading the function which generates the data frames for each state]
 source('EmergDec.R')
   # loading the function that obtains the mandatory EmergDec dummy variable 
   # value
+df_EmergDec <- EmergDec_function_for_state(state_name = 'Alabama')
+for(i in 2:length(all_states_considered)){
+  df_EmergDec <- bind_rows(df_EmergDec, 
+                           EmergDec_function_for_state(state_name = all_states_considered[i]))
+}
+
+# Saving this df into a separate file:
+save(df_EmergDec, file = 'saved_EmergDec_all_states.RData')
 
 # NOTE: For the remaining 15 state policy measures, will rely on the generalized 
 #       FILL_function.
 #      - in fact, it can also be used with EmergDec, but it has been considered
 #        a separate case (seen above) for brevity
 
-# 8.2. Remaining 15 Policy Measures
-df_EDA <- simple_EDA_fun(main_df = COVID_measures_df_REVIEWED)
-  # This gives some insigth on the overall behaviour of the policy measures and 
-  # where different types of dimensions are present
-  # (thus simplifying where to look for heterogeneity)
+
+
+
+
+source('aux_fun_chains_START_fill.R')
+
+
+
 
 EELJ_all_states_policies_df %>%
   filter(ch_SWPop == 1) %>%
@@ -416,5 +439,9 @@ COVID_measures_df_REVIEWED %>%
 # - Please, kindly refer to FILL_function: under construction.
 
 # --------------------------------------------------------------------------
+
+
+# --------------------------------------------------------------------------
+
 
 

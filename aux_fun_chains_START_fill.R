@@ -12,7 +12,6 @@
 # __________________________________________________________________________
 
 # FUNCTION THAT GIVES THE df_to_fill VALUES FOR EACH NEW POLICY INTRODUCED
-# WITHIN THE SchoolClose VARIABLE 
 # (AUXILIARY CODE FOR BREVITY)
 
 # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

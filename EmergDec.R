@@ -57,10 +57,9 @@ EmergDec_function_for_state <- function(data_measures = COVID_measures_df_REVIEW
                                                                            by = 'day')),
                                                       by = Chain_start] 
     # these are the dates the policy was active
+    df_state_var$EmergDec[df_state_var$Date %in% dates_active_policy$DateActive] <- 1
+    # filling state-wide
   }
-  
-  df_state_var$EmergDec[df_state_var$Date %in% dates_active_policy$DateActive] <- 1
-  # filling state-wide
   
   return(df_state_var)
   # returns a data frame wchich can be transformed to wide format with a single line of code

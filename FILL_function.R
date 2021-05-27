@@ -33,13 +33,14 @@
 FILL_function <- function(data_measures = COVID_measures_df_REVIEWED,
                           county_data = counties_df,
                           state_name,
-                          policy_measure){
+                          policy_measure,
+                          not_vec = c(0, NA)){
   
   # for construction/testing:
   data_measures <- COVID_measures_df_REVIEWED
   county_data <- counties_df
   state_name <- 'Alabama'
-  policy_measure <- 'SchoolClose'
+  policy_measure <- 'BarRestrict'
   # -------------------------------------------
   
   
@@ -119,25 +120,166 @@ FILL_function <- function(data_measures = COVID_measures_df_REVIEWED,
         
         # ---------------------------- STEP III ---------------------------------
         # Continuing to fill for the remaining entries in the policy state df:
-        rn_ps_df <- nrow(policy_state_simplified)
-        # if(nrow(policy_state_simplified) != 1){
-        #   for(r in 2:rn_ps_df){
-        #     
-        #   }
-        # }
-        
-        
-        # return(df_to_fill)
+        changing_policies <- intersect(policy_state_changes$PID, 
+                                       policy_state_simplified$PID)
+        if(length(changing_policies) != 0){
+          for(pc in changing_policies){
+            row_pc_df <- which(policy_state_simplified$PID == pc)
+            
+            # -------------------------------------------------------------------------------------
+            # Obtaining the dates for which this measure holds:
+            pc_policy_dates <- seq(policy_state_simplified$begins[row_pc_df],
+                                   policy_state_simplified$finishes[row_pc_df],
+                                   by = 'days')
+            
+            last_day_pc_policy <- policy_state_simplified$finishes[row_pc_df]
+            first_day_pc_policy <- pc_policy_dates[1]
+            
+            # -------------------------------------------------------------------------------------
+            # Obtaining the locations for which this measure holds:
+            if(policy_state_simplified$SWGeo[row_pc_df] == 1){
+              counties_to_fill_vec <- unique(as.character(df_to_fill$County))
+              # i.e. if it is state-wide geographically, fill for all counties in the state
+              #      for this policy instance
+            } else{
+              if(!(is.na(policy_state_simplified$Joins[row_pc_df]))){
+                # i.e. if this policy joins a previous one, and locations are specified
+                joins_id_row <- which(policy_state_simplified$PID == policy_state_simplified$Joins[row_pc_df])
+                  # this is the past policy it joins
+                
+                if(policy_state_simplified$SWGeo[joins_id_row] == 1){
+                  joins_id_locations <- unique(as.character(df_to_fill$County))
+                  # ideally, this case should not occur
+                  # cannot join a policy which was initially SWGeo
+                } else{
+                  joins_id_locations <- unlist(str_split(policy_state_simplified$AppliesTo[joins_id_row],
+                                                         ', '))
+                }
+                  # and these are the locations it joins
+                
+                # Here, the counties for which the policy applies to will be simply:
+                counties_to_fill_vec <- union(unlist(str_split(policy_state_simplified$AppliesTo[row_pc_df],
+                                                               ', ')),
+                                              # these are the newly-added locations
+                                              joins_id_locations)
+                                              # and these are the old ones
+                rm(joins_id_row, joins_id_locations)
+              } else{
+                if(!(is.na(policy_state_simplified$Leaves[row_pc_df]))){
+                  # i.e. if this policy LEAVES a previous one, and locations are specified
+                  # [this case is simpler, see data documentation for reference]  
+                  counties_to_fill_vec <- unlist(str_split(policy_state_simplified$AppliesTo[row_pc_df],
+                                                           ', '))
+                }
+              }
+            }
+            
+            # Now that we have the locations and the dates, we can obtain their combinations:
+            # [similary to what has been done in the aux_fun_chains_START_fill function]
+            
+            # Putting the dates-locations combinations to be filled in a single vector:
+            which_loc_date_vec <- which((df_to_fill$County %in% counties_to_fill_vec) &
+                                          (df_to_fill$Date %in% pc_policy_dates))
+            
+            # -------------------------------------------------------------------------------------
+            # Now, ctually filling the instances in the data frame:
+            if(policy_type == 'cat_sch'){
+              # =========== THIS IS FOR THE SchoolClose VARIABLE
+              # -------------------------- WARNING: THIS NEEDS IMPROVEMENT !!!
+              df_to_fill$policy_measure_var_main[which_loc_date_vec] <- policy_state_simplified$SchoolRestrictLevel[row_pc_df]
+              if(str_detect(policy_state_simplified$PolicyCodingNotes[row_pc_df], 'private|Private')){
+                df_to_fill$policy_measure_var_sec[which_loc_date_vec] <- policy_state_simplified$SchoolRestrictLevel[row_pc_df]
+              }
+            } else{
+              if(policy_type == 'bin'){
+                # ========= THIS IS FOR THE EmergDec, CaseIsolation, StayAtHome, BusinessMask, SchoolMask,
+                #                           Quarantine, & the three TravelRestrict VARIABLES
+                df_to_fill$policy_measure_var_main[which_loc_date_vec] <- 1
+              } else{
+                if(policy_type == 'cat_bus'){
+                  # ======= THIS IS FOR THE BarRestrict, RestaurantRestrict, OtherBusinessClose and the
+                  #                         NEBusinessClose VARIABLES
+                  df_to_fill$policy_measure_var_main[which_loc_date_vec] <- policy_state_simplified$BusinessRestrictLevel[row_pc_df]
+                } else{
+                  if(policy_type == 'numb'){
+                    # ======= THIS IS FOR THE GathRestrict VARIABLE
+                    df_to_fill$policy_measure_var_main[whcih_loc_date_vec] <- 'GathRestrict: see limit var-s'
+                  } else{
+                    if(policy_type == 'cat_mand'){
+                      # ===== THIS IS FOR THE PublicMask VARIABLE
+                      df_to_fill$policy_measure_var_main[which_loc_date_vec] <- policy_state_simplified$PublicMaskLevel[row_pc_df]
+                    }
+                  }
+                }
+              }
+            }
+            # -------------------------------------------------------------------------------------
+            
+            # Lastly, filling for the perc_usual_time, only_non_vaccinated_ppl, lim_in_general, 
+            # lim_out_general, lim_in_rel, lim_out_rel, & the mandate columns:
+          
+            # ===============================
+            # FILLING FOR THE TIME DIMENSION:
+            if(policy_state_simplified$Curfew[row_pc_df] %in% not_vec){
+              df_to_fill$perc_usual_time[which_loc_date_vec] <- 'All the time'
+            } else{
+              df_to_fill$perc_usual_time[which_loc_date_vec] <- paste0('From ',
+                                                                       policy_state_simplified$CurfewStart[row_pc_df],
+                                                                       ' to ',
+                                                                       policy_state_simplified$CurfewEnd[row_pc_df])
+            }
+            
+            # =========================================
+            # FILLING FOR THE VACCINATED PPL DIMENSION:
+            if(policy_state_simplified$VaccineExempt[row_pc_df] %in% not_vec){
+              df_to_fill$only_non_vaccinated_ppl[which_loc_date_vec] <- 0
+            } else{
+              df_to_fill$only_non_vaccinated_ppl[which_loc_date_vec] <- 1
+            }
+            
+            # ==================================
+            # FILLING FOR THE MANDATE DIMENSION:
+            if(policy_state_simplified$Mandate[row_pc_df] %in% not_vec){
+              df_to_fill$mandate[which_loc_date_vec] <- 0
+            } else{
+              df_to_fill$mandate[which_loc_date_vec] <- 1
+            }
+            
+            # =====================================
+            # FILLING FOR THE GATHERINGS DIMENSION:
+            # -> FOR INSIDE, GENERAL GATHERINGS
+            if(is.na(policy_state_simplified$InGathLim[row_pc_df])){
+              df_to_fill$lim_in_general[which_loc_date_vec] <- 'No limit'
+            } else{
+              df_to_fill$lim_in_general[which_loc_date_vec] <- policy_state_simplified$InGathLim[row_pc_df]
+            }
+            # -> FOR OUTSIDE, GENERAL GATHERINGS
+            if(is.na(policy_state_simplified$OutGathLim[row_pc_df])){
+              df_to_fill$lim_out_general[which_loc_date_vec] <- 'No limit'
+            } else{
+              df_to_fill$lim_out_general[which_loc_date_vec] <- policy_state_simplified$OutGathLim[row_pc_df]
+            }
+            # -> FOR INSIDE, RELIGIOUS GATHERINGS
+            if(is.na(policy_state_simplified$InGathLimReligious[row_pc_df])){
+              df_to_fill$lim_in_rel[which_loc_date_vec] <- 'No limit'
+            } else{
+              df_to_fill$lim_in_rel[which_loc_date_vec] <- policy_state_simplified$InGathLimReligious[row_pc_df]
+            }
+            # -> FOR OUTSIDE, RELIGIOUS GATHERINGS
+            if(is.na(policy_state_simplified$OutGathLimReligious[row_pc_df])){
+              df_to_fill$lim_out_rel[which_loc_date_vec] <- 'No limit'
+            } else{
+              df_to_fill$lim_out_rel[which_loc_date_vec] <- policy_state_simplified$OutGathLimReligious[row_pc_df]
+            }
+            
+            
+            # -------------------- END OF FILLING PART ----------------------------------
+          }
+        }
       }
-
     }
-    
-    
-    
   }
   
-  # rm(df_to_fill, policy_state_changes, policy_state_simplified)
-  # gc()
-  
-  
+  return(df_to_fill)
+  # --------------------------------------- END OF FUNCTION -----------------------------
 }
