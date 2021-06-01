@@ -55,6 +55,7 @@ tables_html <- html_counties %>%
   read_html() %>%
   html_nodes('table')
     # After inspection, we observe that the first element in this list is what we are interested in
+
 counties_df <- as.data.frame(html_table(tables_html[1], fill = T)) %>%
   select(2,1,3) %>%
   rename(State = State.or.equivalent,
@@ -65,6 +66,23 @@ counties_df <- as.data.frame(html_table(tables_html[1], fill = T)) %>%
 
 # NOTICE: The state of Hawaii is written as Hawaiʻi, renaming it to avoid issues in the future:
 counties_df$State[counties_df$State == 'Hawaiʻi'] <- 'Hawaii'
+
+# --------------------------------------------------------------------------
+# NEW CHANGES:
+# Also removing the [d] and [e], etc. superscripts:
+counties_df <- counties_df %>%
+  mutate(County = str_replace_all(County, '\\[[:alpha:]+\\]', '')) %>%
+  mutate(County = str_replace_all(County, '\\[[:alpha:]+\\]', '')) %>%
+  mutate(County = str_replace_all(County, '\\[[:digit:]+\\]', '')) %>%
+  mutate(County = str_replace_all(County, '\\,[:space:]+[:alpha:]+', ''))
+
+counties_with_punctuation <- str_subset(counties_df$County, '[:punct:]')
+
+# ---------------------------------------------------------------------------
+# test <- counties_df %>%
+#   distinct(State, County, .keep_all = T)
+
+# no duplicates after the last manipulation => perfect
 
 rm(html_counties, tables_html)
 gc()
@@ -316,12 +334,24 @@ source('EELJ_function.R')
 # rm(first_state_df, first_policy_df, i, j, p)
 # gc()
 # 
+# -------------------------------------------------
+# # Comparing if consistent with previous data saved:
+# new <- EELJ_all_states_policies_df
+# load('saved_EELJ_all_states_policies.RData')
+# old <- EELJ_all_states_policies_df
+# dplyr::all_equal(old, new)
+# -------------------------------------------------
+# # Making choices based on that output:
+# EELJ_all_states_policies_df <- new
+# rm(old, new); gc()
+# 
 # # Saving the data frame for future use:
 # save(EELJ_all_states_policies_df,
 #      file = 'saved_EELJ_all_states_policies.RData')
 # 
 # # environment saved up until here:
 # # save.image(file = 'Environment_uptil_EELJ_27_May.RData')
+# # save.image(file = 'Environment_uptil_EELJ_31_May.Rdata')
 
 
 # Some EDA for the EELJ df which captures heterogeneity across policy measures:
@@ -392,8 +422,76 @@ for(i in 2:length(all_states_considered)){
                            EmergDec_function_for_state(state_name = all_states_considered[i]))
 }
 
+# new <- df_EmergDec
+# load('saved_EmergDec_all_states.RData')
+# old <- df_EmergDec
+# dplyr::all_equal(new, old)
+#
+# df_EmergDec <- new
+# rm(new, old); gc()
+
 # Saving this df into a separate file:
 save(df_EmergDec, file = 'saved_EmergDec_all_states.RData')
+
+
+
+source('aux_fun_chains_START_fill.R')
+source('FILL_function.R')
+
+# ------------------------------------------------------------------------------------
+# 8.2. SchoolClose (per request)
+
+# Fixing the county coding issues with this variable in the general data frame:
+counties_with_punctuation <- str_subset(counties_df$County, '[:punct:]')
+  
+ # '^,[:^punct:]'
+
+
+# Generating the School_Close data frame as requested:
+df_SchoolClose <- FILL_function(data_measures = COVID_measures_df_REVIEWED,
+                                county_data = counties_df,
+                                state_name = 'Alabama',
+                                policy_measure = 'SchoolClose',
+                                not_vec = c(0, NA))
+
+for(i in 2:length(all_states_considered)){
+  df_SchoolClose <- bind_rows(df_SchoolClose,
+                              FILL_function(data_measures = COVID_measures_df_REVIEWED,
+                                            county_data = counties_df,
+                                            state_name = all_states_considered[i],
+                                            policy_measure = 'SchoolClose',
+                                            not_vec = c(0, NA)))
+}
+
+# issue with Pennsylvania -> fix  -> FIXED.
+# function now runs for all states!
+
+# length(unique(df_SchoolClose$State))
+# works perfectly fine
+
+table(df_SchoolClose$mandate)
+# there are some non-mandatory measures
+table(df_SchoolClose$only_non_vaccinated_ppl)
+# no heterogeneity across this variable
+summary(df_SchoolClose)
+# and also across many others (apart from the 'important ones')
+
+df_SchoolClose_County_lvl_Mandatory_only <- df_SchoolClose
+
+df_SchoolClose_County_lvl_Mandatory_only <- df_SchoolClose_County_lvl_Mandatory_only %>%
+  mutate(policy_measure_var_main = ifelse(is.na(mandate) | mandate == 0,
+                                          policy_type_function('SchoolClose')[2],
+                                          policy_measure_var_main),
+         policy_measure_var_sec = ifelse(is.na(mandate) | mandate == 0,
+                                         policy_type_function('SchoolClose')[2],
+                                         policy_measure_var_sec)) %>%
+  # NA-s means these dates occur after the last policy ended => replace with usual value
+  # non-mandatory in THIS data set also translates to non-existent policy
+  dplyr::select(1:5)
+  # selecting the relevant variables only
+  
+
+
 
 # NOTE: For the remaining 15 state policy measures, will rely on the generalized 
 #       FILL_function.
@@ -404,19 +502,14 @@ save(df_EmergDec, file = 'saved_EmergDec_all_states.RData')
 
 
 
-source('aux_fun_chains_START_fill.R')
-
-
-
-
 EELJ_all_states_policies_df %>%
   filter(ch_SWPop == 1) %>%
   nrow()
-  # there are only 15 rows where changes in population occur
+  # there are only 16 rows where changes in population occur
 COVID_measures_df_REVIEWED %>%
   filter(SWPop == 0) %>%
   nrow()
-  # 233 rows from the 13,334 observations of the original table
+  # 256 rows from the 13,334 observations of the original table
 
 # ---> these need to be checked manually as the changes are coded within the policy coding notes
 
@@ -436,9 +529,25 @@ COVID_measures_df_REVIEWED %>%
 # For these 5 groups of heterogeneity considered, loading the 5 auxiliary functions:
 
 
-# - Please, kindly refer to FILL_function: under construction.
+
 
 # --------------------------------------------------------------------------
+# sourcing/testing other important codes:
+
+# test_empty_df <- function_empty_df_for_state(state_name = 'California', long_output = F)
+# makes an empty df for each possible state - California tested here
+
+# test_ends_extends <- ENDS_EXTENDS_function(state_name = 'California', policy_measure = 'StayAtHome')
+# makes a df for a state and a policy measure, having simplified the ending/extending rows
+
+# test_eelj <- EELJ_function(state_name = 'California', policy_measure = 'SchoolClose')
+# looks for where the policy changes are and which category these changes fall into
+
+# test_EmergDec <- EmergDec_function_for_state(state_name = 'Alabama')
+# obtains the mandatory EmergDec dummy variable value
+
+
+
 
 
 # --------------------------------------------------------------------------

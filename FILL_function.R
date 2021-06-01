@@ -28,7 +28,6 @@
 
 
 # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-# UNDER CONSTRUCTION:
 
 FILL_function <- function(data_measures = COVID_measures_df_REVIEWED,
                           county_data = counties_df,
@@ -37,10 +36,12 @@ FILL_function <- function(data_measures = COVID_measures_df_REVIEWED,
                           not_vec = c(0, NA)){
   
   # for construction/testing:
-  data_measures <- COVID_measures_df_REVIEWED
-  county_data <- counties_df
-  state_name <- 'Alabama'
-  policy_measure <- 'BarRestrict'
+  # -------------------------------------------
+  # data_measures <- COVID_measures_df_REVIEWED
+  # county_data <- counties_df
+  # state_name <- 'Pennsylvania'
+  # policy_measure <- 'SchoolClose'
+  # not_vec <- c(0, NA)
   # -------------------------------------------
   
   
@@ -109,11 +110,19 @@ FILL_function <- function(data_measures = COVID_measures_df_REVIEWED,
         # will be running the auxiliary function for the beginnings of chains on these policy measures
       
       if(length(starting_policies) == 0){
-        return('Check data inputs - no starting policies in this policy chain!')
+        print(paste0('Check data inputs - no starting policies in this policy chain!',
+                     ' - CASE OF ', state_name))
+        return(df_to_fill)
         # Ideally, if there are no data input mistakes, this should not occur!
       } else{
         for(ps in starting_policies){
-          df_to_fill <- aux_fun_chains_START_fill(starting_policy = ps)
+          df_to_fill <- aux_fun_chains_START_fill(starting_policy = ps,
+                                                  p_type = policy_type, 
+                                                  p_usual_vale = usual_value,
+                                                  df_changes = policy_state_changes, 
+                                                  df_simplified = policy_state_simplified,
+                                                  df_fill = df_to_fill,
+                                                  not_vec = c(0, NA))
           # updating the data frame to fill to match the starting policies
         }
 
@@ -122,9 +131,11 @@ FILL_function <- function(data_measures = COVID_measures_df_REVIEWED,
         # Continuing to fill for the remaining entries in the policy state df:
         changing_policies <- intersect(policy_state_changes$PID, 
                                        policy_state_simplified$PID)
+        
         if(length(changing_policies) != 0){
           for(pc in changing_policies){
             row_pc_df <- which(policy_state_simplified$PID == pc)
+            private_school_indicator <- F
             
             # -------------------------------------------------------------------------------------
             # Obtaining the dates for which this measure holds:
@@ -142,15 +153,26 @@ FILL_function <- function(data_measures = COVID_measures_df_REVIEWED,
               # i.e. if it is state-wide geographically, fill for all counties in the state
               #      for this policy instance
             } else{
-              if(!(is.na(policy_state_simplified$Joins[row_pc_df]))){
+              if(!(is.na(policy_state_simplified$Joins[row_pc_df]))|
+                 !(is.na(policy_state_simplified$Expands[row_pc_df]))){
                 # i.e. if this policy joins a previous one, and locations are specified
-                joins_id_row <- which(policy_state_simplified$PID == policy_state_simplified$Joins[row_pc_df])
+                # joins_id_row <- which(policy_state_simplified$PID == policy_state_simplified$Joins[row_pc_df])
                   # this is the past policy it joins
+                joins_id_row <- which(policy_state_simplified$PID %in% c(policy_state_simplified$Joins[row_pc_df],
+                                                                         policy_state_simplified$Expands[row_pc_df]))[1]
                 
                 if(policy_state_simplified$SWGeo[joins_id_row] == 1){
-                  joins_id_locations <- unique(as.character(df_to_fill$County))
-                  # ideally, this case should not occur
-                  # cannot join a policy which was initially SWGeo
+                  if(policy_type != 'cat_sch'){
+                    joins_id_locations <- unique(as.character(df_to_fill$County))
+                    # ideally, this case should not occur with other variables than SchoolClose
+                    # cannot join a policy which was initially SWGeo
+                  } else{
+                    private_school_indicator <- T
+                    # This means that the variable will be filling ONLY for the private schools
+                    # (secondary) variable
+                    joins_id_locations <- unlist(str_split(policy_state_simplified$AppliesTo[row_pc_df],
+                                                           ', '))
+                  }
                 } else{
                   joins_id_locations <- unlist(str_split(policy_state_simplified$AppliesTo[joins_id_row],
                                                          ', '))
@@ -159,15 +181,18 @@ FILL_function <- function(data_measures = COVID_measures_df_REVIEWED,
                 
                 # Here, the counties for which the policy applies to will be simply:
                 counties_to_fill_vec <- union(unlist(str_split(policy_state_simplified$AppliesTo[row_pc_df],
-                                                               ', ')),
-                                              # these are the newly-added locations
-                                              joins_id_locations)
-                                              # and these are the old ones
+                                                                 ', ')),
+                                                # these are the newly-added locations
+                                                joins_id_locations)
+                  # and these are the old ones
+                
                 rm(joins_id_row, joins_id_locations)
               } else{
-                if(!(is.na(policy_state_simplified$Leaves[row_pc_df]))){
+                if(!(is.na(policy_state_simplified$Leaves[row_pc_df]))|
+                   !(is.na(policy_state_simplified$Eases[row_pc_df]))){
                   # i.e. if this policy LEAVES a previous one, and locations are specified
                   # [this case is simpler, see data documentation for reference]  
+
                   counties_to_fill_vec <- unlist(str_split(policy_state_simplified$AppliesTo[row_pc_df],
                                                            ', '))
                 }
@@ -185,10 +210,17 @@ FILL_function <- function(data_measures = COVID_measures_df_REVIEWED,
             # Now, ctually filling the instances in the data frame:
             if(policy_type == 'cat_sch'){
               # =========== THIS IS FOR THE SchoolClose VARIABLE
-              # -------------------------- WARNING: THIS NEEDS IMPROVEMENT !!!
-              df_to_fill$policy_measure_var_main[which_loc_date_vec] <- policy_state_simplified$SchoolRestrictLevel[row_pc_df]
-              if(str_detect(policy_state_simplified$PolicyCodingNotes[row_pc_df], 'private|Private')){
+              if(private_school_indicator){
+                # i.e. if need to fill only for private schools:
                 df_to_fill$policy_measure_var_sec[which_loc_date_vec] <- policy_state_simplified$SchoolRestrictLevel[row_pc_df]
+              } else{
+                # i.e. if need to fill only for public schools:
+                df_to_fill$policy_measure_var_main[which_loc_date_vec] <- policy_state_simplified$SchoolRestrictLevel[row_pc_df]
+          
+                if(str_detect(policy_state_simplified$PolicyCodingNotes[row_pc_df], 'private|Private')){
+                  # i.e. if need to fill for both
+                  df_to_fill$policy_measure_var_sec[which_loc_date_vec] <- policy_state_simplified$SchoolRestrictLevel[row_pc_df]
+                }
               }
             } else{
               if(policy_type == 'bin'){
