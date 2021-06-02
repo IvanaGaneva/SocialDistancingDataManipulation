@@ -72,17 +72,42 @@ counties_df$State[counties_df$State == 'Hawaiʻi'] <- 'Hawaii'
 # Also removing the [d] and [e], etc. superscripts:
 counties_df <- counties_df %>%
   mutate(County = str_replace_all(County, '\\[[:alpha:]+\\]', '')) %>%
-  mutate(County = str_replace_all(County, '\\[[:alpha:]+\\]', '')) %>%
+  mutate(County = str_replace_all(County, '\\([:alpha:]+.*\\)', '')) %>%
   mutate(County = str_replace_all(County, '\\[[:digit:]+\\]', '')) %>%
-  mutate(County = str_replace_all(County, '\\,[:space:]+[:alpha:]+', ''))
+  # mutate(County = str_replace_all(County, '\\,[:space:]+[:alpha:]+', '')) %>%
+  mutate(County = str_replace_all(County, '\\,.*', '')) %>%
+  mutate(County = str_replace_all(County, "[^'[:^punct:]]", ' ')) %>%
+  mutate(County = str_squish(County))
+  
 
-counties_with_punctuation <- str_subset(counties_df$County, '[:punct:]')
+# counties_with_punctuation <- str_subset(counties_df$County, '[:punct:]')
+# # all good - only apostrophes left, and no multiple spaces!
 
 # ---------------------------------------------------------------------------
 # test <- counties_df %>%
 #   distinct(State, County, .keep_all = T)
+# 
+# View(counties_df %>% filter(!(Population2019 %in% test$Population2019)))
+# ---------------------------------------------------------------------------
+# (observing which are the duplpicates to fix this)
 
-# no duplicates after the last manipulation => perfect
+counties_df <- counties_df %>%
+  mutate(Population2019 = str_replace_all(Population2019, '\\,', '')) %>%
+  mutate(Population2019 = as.numeric(Population2019)) %>%
+  # transforming the population into number!
+  group_by(State, County) %>%
+  mutate(Population2019_new = sum(Population2019)) %>%
+  ungroup() %>%
+  dplyr::select(-Population2019) %>%
+  rename(Population2019 = Population2019_new) %>%
+  distinct()
+
+# counties_df %>% 
+#   filter(Population2019 != Population2019_new) %>%
+#   View()
+# # all good
+
+# NOTE: Have to make similar changes to the AppliesTo variable in the final COVID reviewed df!
 
 rm(html_counties, tables_html)
 gc()
@@ -194,6 +219,44 @@ COVID_measures_df_REVIEWED <- COVID_measures_df %>%
 # case where a policy ends for specific locations only! Will change this to facilitate the
 # coding of the Ends-Extends function.
 
+
+# EXTRA STEP: Normalizing the input for county names (similarly to the counties_df manipulation)
+vec_counties_mentioned <- unlist(strsplit(unlist(COVID_measures_df_REVIEWED$AppliesTo)[!(is.na(unlist(COVID_measures_df_REVIEWED$AppliesTo)))],
+                           ', ')) %>%
+  unique() %>%
+  str_subset('[:punct:]')
+  # these are the counties' names to contain punctuation
+
+vec_counties_mentioned_changed <- vec_counties_mentioned %>%
+  str_replace_all('\\([:alpha:]+.*\\)', '') %>%
+  # removes text in brackets along with the brackets themselves
+  str_replace_all("[^'[:^punct:]]", ' ') %>%
+  str_squish()
+  
+# vec_counties_mentioned_changed
+# # all good
+
+for(i in vec_counties_mentioned){
+  loc_temp <- which(vec_counties_mentioned == i)
+  COVID_measures_df_REVIEWED$AppliesTo <- str_replace_all(COVID_measures_df_REVIEWED$AppliesTo, 
+                                   i, 
+                                   vec_counties_mentioned_changed[loc_temp])
+  COVID_measures_df_REVIEWED$AppliesTo <- str_replace_all(COVID_measures_df_REVIEWED$AppliesTo, 
+                                   '\\([:alpha:]+.*\\)',
+                                   '')
+  rm(loc_temp)
+}
+COVID_measures_df_REVIEWED$AppliesTo <- str_squish(COVID_measures_df_REVIEWED$AppliesTo)
+rm(i); gc()
+
+
+# unlist(strsplit(unlist(COVID_measures_df_REVIEWED$AppliesTo)[!(is.na(unlist(COVID_measures_df_REVIEWED$AppliesTo)))],
+#                                           ', ')) %>%
+#   unique() %>%
+#   str_subset('[:punct:]')
+# # these are the counties' names to contain punctuation LEFT: NONE (as desired)
+
+rm(vec_counties_mentioned, vec_counties_mentioned_changed); gc()
 
 
 # --------------------------------------------------------------------------
@@ -352,6 +415,7 @@ source('EELJ_function.R')
 # # environment saved up until here:
 # # save.image(file = 'Environment_uptil_EELJ_27_May.RData')
 # # save.image(file = 'Environment_uptil_EELJ_31_May.Rdata')
+# # save.image(file = 'Environment_uptil_EELJ_1_June.RData')
 
 
 # Some EDA for the EELJ df which captures heterogeneity across policy measures:
@@ -441,13 +505,18 @@ source('FILL_function.R')
 # ------------------------------------------------------------------------------------
 # 8.2. SchoolClose (per request)
 
-# Fixing the county coding issues with this variable in the general data frame:
-counties_with_punctuation <- str_subset(counties_df$County, '[:punct:]')
-  
- # '^,[:^punct:]'
-
-
 # Generating the School_Close data frame as requested:
+# (FOR ALL STATES/COUNTIES TOGETHER)
+
+# 1. At the County level for all states together
+
+# A couple of notes:
+# - initial issue with Pennsylvania -> need to fix -> DONE
+# - function now runs for all states: check with < length(unique(df_SchoolClose$State)) >
+#   after the loop below
+# - some missing observations for Utah, however -> need to fix -> DONE
+
+
 df_SchoolClose <- FILL_function(data_measures = COVID_measures_df_REVIEWED,
                                 county_data = counties_df,
                                 state_name = 'Alabama',
@@ -463,22 +532,21 @@ for(i in 2:length(all_states_considered)){
                                             not_vec = c(0, NA)))
 }
 
-# issue with Pennsylvania -> fix  -> FIXED.
-# function now runs for all states!
+# Saving into an RData object:
+# save(df_SchoolClose, file = 'saved_SchoolClose_all_states_1_June.Rdata')
 
-# length(unique(df_SchoolClose$State))
-# works perfectly fine
+# -------------------------------------------------------------------------------
+# Subsetting for mandatory only:
 
-table(df_SchoolClose$mandate)
-# there are some non-mandatory measures
-table(df_SchoolClose$only_non_vaccinated_ppl)
-# no heterogeneity across this variable
-summary(df_SchoolClose)
-# and also across many others (apart from the 'important ones')
+# table(df_SchoolClose$mandate)
+# # there are some non-mandatory measures
 
-df_SchoolClose_County_lvl_Mandatory_only <- df_SchoolClose
+# table(df_SchoolClose$only_non_vaccinated_ppl)
+# # no heterogeneity across this variable
+# summary(df_SchoolClose)
+# # and also across many others (apart from the 'important ones')
 
-df_SchoolClose_County_lvl_Mandatory_only <- df_SchoolClose_County_lvl_Mandatory_only %>%
+df_SchoolClose_mandate <- df_SchoolClose %>%
   mutate(policy_measure_var_main = ifelse(is.na(mandate) | mandate == 0,
                                           policy_type_function('SchoolClose')[2],
                                           policy_measure_var_main),
@@ -487,20 +555,66 @@ df_SchoolClose_County_lvl_Mandatory_only <- df_SchoolClose_County_lvl_Mandatory_
                                          policy_measure_var_sec)) %>%
   # NA-s means these dates occur after the last policy ended => replace with usual value
   # non-mandatory in THIS data set also translates to non-existent policy
-  dplyr::select(1:5)
+  dplyr::select(1:5) %>%
   # selecting the relevant variables only
-  
+  rename(Public_Schools = policy_measure_var_main,
+         Private_Schools = policy_measure_var_sec)
+
+table(df_SchoolClose_mandate$Public_Schools)
+
+# save(df_SchoolClose_mandate, file = 'SchoolClose_COUNTY_lvl.Rdata')
 
 
+# save(df_SchoolClose_County_lvl_Mandatory_only, 
+#      file = 'SchoolClose_County_Mandate_PRELIM.RData')
+
+# load('SchoolClose_County_Mandate_PRELIM.RData')
+# for past version of the file
+
+df_SchoolClose_mandate_STATE <- df_SchoolClose_mandate %>%
+  gather(schools_type, value, -c(1:3)) %>%
+  mutate(value = factor(value,
+                        levels = c('InPersonAllowed',
+                                      'LimitedInPerson',
+                                      'NoInPerson'),
+                        labels = c('0', '0.5', '1'))) %>%
+  spread(schools_type, value)
+
+county_data <- county_data %>%
+  group_by(State) %>%
+  mutate(StatePopulation2019 = sum(Population2019)) %>%
+  ungroup()
+
+df_SchoolClose_mandate_STATE <- df_SchoolClose_mandate_STATE %>%
+  # adding the population as of 2019 from the county df:
+  left_join(county_data, by = c('State', 'County')) %>%
+  # obtaining for what percentage of the population within the whole state
+  # measures for public schools applied:
+  mutate(county_pop_frac_of_state_pop = Population2019/StatePopulation2019)
+
+# group by date and state now
+df_SchoolClose_mandate_STATE <- df_SchoolClose_mandate_STATE %>%
+  mutate(Public_Schools = as.numeric(as.character(Public_Schools))) %>%
+  mutate(Private_Schools = as.numeric(as.character(Private_Schools))) %>%
+  # transforming to numeric to allow for multiplication
+  mutate(private_sch_frac_pop = Private_Schools*county_pop_frac_of_state_pop,
+         public_sch_frac_pop = Public_Schools*county_pop_frac_of_state_pop) %>%
+  group_by(State, Date) %>%
+  summarize(frac_state_pop_with_closed_private_sch = sum(private_sch_frac_pop),
+         frac_state_pop_with_closed_public_sch = sum(public_sch_frac_pop))
+
+# save(df_SchoolClose_mandate_STATE, file = 'SchoolClose_STATE_lvl.Rdata')
+
+
+#                                   END OF MAIN PART OF CODES
+# -------------------------------------------------------------------------------------------------  
+# =================================================================================================
+# -------------------------------------------------------------------------------------------------  
 
 # NOTE: For the remaining 15 state policy measures, will rely on the generalized 
 #       FILL_function.
 #      - in fact, it can also be used with EmergDec, but it has been considered
 #        a separate case (seen above) for brevity
-
-
-
-
 
 EELJ_all_states_policies_df %>%
   filter(ch_SWPop == 1) %>%
@@ -529,8 +643,6 @@ COVID_measures_df_REVIEWED %>%
 # For these 5 groups of heterogeneity considered, loading the 5 auxiliary functions:
 
 
-
-
 # --------------------------------------------------------------------------
 # sourcing/testing other important codes:
 
@@ -545,10 +657,6 @@ COVID_measures_df_REVIEWED %>%
 
 # test_EmergDec <- EmergDec_function_for_state(state_name = 'Alabama')
 # obtains the mandatory EmergDec dummy variable value
-
-
-
-
 
 # --------------------------------------------------------------------------
 

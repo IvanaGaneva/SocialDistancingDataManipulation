@@ -56,6 +56,21 @@ o Improvements made on the leaves & joins incidences (simultaneous): this needs 
 o Began working on the aggregation part (simpler than the county level, equivalent to filtering for SWGeo == 1 in the *transformed* output).
 o Saved all relevant data sets (up-to-date) in the Environment_uptil_EELJ_27_May.RData file for faster loading.
 
+##### 31/05
+o Completed the text mining process for the School Close variable.
+o Fixed the issues with the counties' punctuation; added a couple of text-mining chunks of codes.
+o Fixed minor issues with the main FILL_function.
+o Saved the SchoolClose data set at the county level within the SchoolClose_COUNTY_lvl.RData file, as per request.
+
+##### 01/06
+o Added aggregation of the SchoolClose variable at the State level, based on what fraction of the population is affected by the measures implemented at the county-level.
+o Saved the SchoolClose data set at the state level within the SchoolClose_STATE_lvl.RData file, as per request.
+o Some important notes for the transferring between categorical to numeric values: 
+   - adopting the notion that 'NoInPerson' translates to 1 (policy being strictly implemented);
+   - likewise 'LimitedInPerson' is set to equal 0.5 (this could be optimized with further text mining, somewhat arbitrary atm);
+   - lastly, 'InPersonAllowed' means that the restrictive policy measure is not implemented at the time, i.e. giving it a value of 0;
+   - using the official Wiki data for the counties' population as of 2019 (automatically downloaded).
+
 #### Generalized list of the things which need improvement/attention:
 _____________________________________________________________________________________________
 -> District of Columbia, counties? ---------------------------------------------- DONE
@@ -65,7 +80,7 @@ ________________________________________________________________________________
 -> Finalize the aux_fun_chains_START_fill --------------------------------------- DONE
 -> Improve the FILL_function ---------------------------------------------------- DONE
 -> Complete v.1 of FILL_function ------------------------------------------------ DONE
--> SchoolClose: Public vs. Private, basic text mining --------------------------- IN PROGRESS
+-> SchoolClose: Public vs. Private, basic text mining --------------------------- DONE
 -> Fix minor issues with the policy_chains function ----------------------------- DONE
 -> Finalize the EDA function ---------------------------------------------------- DONE
 -> Ends/extends cases removed completely (assimilated) -------------------------- DONE
@@ -80,5 +95,5 @@ ________________________________________________________________________________
 -> Coding of St. Clair, Alabama: at some points it is with a dot ---------------- TBD
 -> Check for similar issues, basic text mining (Jaccard Similarity?) ------------ TBD
 -> Cases of Leaves & Joins, should add these to uncoded changes porbably -------- TBD
--> Aggregation/Adding a filter for the state level instead ---------------------- IN PROGRESS
+-> Aggregation/Adding a filter for the state level instead ---------------------- DONE
 _____________________________________________________________________________________________

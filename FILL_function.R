@@ -39,7 +39,7 @@ FILL_function <- function(data_measures = COVID_measures_df_REVIEWED,
   # -------------------------------------------
   # data_measures <- COVID_measures_df_REVIEWED
   # county_data <- counties_df
-  # state_name <- 'Pennsylvania'
+  # state_name <- 'Utah'
   # policy_measure <- 'SchoolClose'
   # not_vec <- c(0, NA)
   # -------------------------------------------
@@ -210,18 +210,63 @@ FILL_function <- function(data_measures = COVID_measures_df_REVIEWED,
             # Now, ctually filling the instances in the data frame:
             if(policy_type == 'cat_sch'){
               # =========== THIS IS FOR THE SchoolClose VARIABLE
+              if(is.na(policy_state_simplified$SchoolRestrictLevel[row_pc_df])){
+              # That is, if level is not present
+                if(!(is.na(policy_state_simplified$Expands[row_pc_df]))|
+                   !(is.na(policy_state_simplified$Joins[row_pc_df]))){
+                  # i.e. if level is not present and policy is expansive w.r.t previous one
+                  related_policy_level <- policy_state_simplified$SchoolRestrictLevel[policy_state_simplified$PID %in%
+                                                                                        c(policy_state_simplified$Expands[row_pc_df],
+                                                                                          policy_state_simplified$Joins[row_pc_df])]
+                  related_policy_level <- related_policy_level[!(is.na(related_policy_level))]
+                  related_policy_level <- related_policy_level[1]
+                  
+                  if(related_policy_level %in% c('NoInPerson', 'LimitedInPerson')){
+                    policy_level_to_fill_with <- 'NoInPerson'
+                  } else{
+                    if(related_policy_level == 'InPersonAllowed'){
+                      policy_level_to_fill_with <- 'LimitedInPerson'
+                    }
+                  } 
+                } else{
+                  if(!(is.na(policy_state_simplified$Eases[row_pc_df]))|
+                     !(is.na(policy_state_simplified$Leaves[row_pc_df]))){
+                  # i.e. if level is not present and policy is easing w.r.t previous one
+                    related_policy_level <- policy_state_simplified$SchoolRestrictLevel[policy_state_simplified$PID %in%
+                                                                                          c(policy_state_simplified$Eases[row_pc_df],
+                                                                                            policy_state_simplified$Leaves[row_pc_df])]
+                    related_policy_level <- related_policy_level[!(is.na(related_policy_level))]
+                    related_policy_level <- related_policy_level[1]
+                    
+                    if(related_policy_level %in% c('InPersonAllowed', 'LimitedInPerson')){
+                      policy_level_to_fill_with <- 'InPersonAllowed'
+                    } else{
+                      if(related_policy_level == 'NoInPerson'){
+                        policy_level_to_fill_with <- 'LimitedInPerson'
+                      }
+                    }
+                  }
+                }
+              } else{
+                # That is, if level IS present
+                policy_level_to_fill_with <- policy_state_simplified$SchoolRestrictLevel[row_pc_df]
+              }
+              
+              # Now, looking at whether we should fill for public/private schools only, 
+              # or should we fill for both!
+              
               if(private_school_indicator){
                 # i.e. if need to fill only for private schools:
-                df_to_fill$policy_measure_var_sec[which_loc_date_vec] <- policy_state_simplified$SchoolRestrictLevel[row_pc_df]
+                df_to_fill$policy_measure_var_sec[which_loc_date_vec] <- policy_level_to_fill_with
               } else{
-                # i.e. if need to fill only for public schools:
-                df_to_fill$policy_measure_var_main[which_loc_date_vec] <- policy_state_simplified$SchoolRestrictLevel[row_pc_df]
-          
+                df_to_fill$policy_measure_var_main[which_loc_date_vec] <- policy_level_to_fill_with
+                
                 if(str_detect(policy_state_simplified$PolicyCodingNotes[row_pc_df], 'private|Private')){
                   # i.e. if need to fill for both
-                  df_to_fill$policy_measure_var_sec[which_loc_date_vec] <- policy_state_simplified$SchoolRestrictLevel[row_pc_df]
+                  df_to_fill$policy_measure_var_sec[which_loc_date_vec] <- policy_level_to_fill_with
                 }
               }
+              # ============================ END OF SCHOOLCLOSE VARIABLE (most complex case)
             } else{
               if(policy_type == 'bin'){
                 # ========= THIS IS FOR THE EmergDec, CaseIsolation, StayAtHome, BusinessMask, SchoolMask,
