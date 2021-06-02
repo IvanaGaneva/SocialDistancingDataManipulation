@@ -139,8 +139,8 @@ Structuring the codes within a single project | IN PROGRESS
 Simplifying/Splitting the FILL_function into smaller parts | IN PROGRESS
 If necessary, add some rm(), gc() lines after that, memory-wise improvement | TBD
 Bars/Restaurants/BusinessesClose: usual working hours, function file | TBD
-Coding of St. Clair, Alabama: at some points it is with a dot | TBD
-Check for similar issues, basic text mining (Jaccard Similarity?) | TBD
-Cases of Leaves & Joins, should add these to uncoded changes porbably | TBD
+Coding of St. Clair, Alabama: at some points it is with a dot | DONE
+Check for similar issues, basic text mining (Jaccard Similarity?) | DONE
+Cases of Leaves & Joins (simult.), should add these to uncoded changes porbably | TBD
 Aggregation/Adding a filter for the state level instead | DONE
 _____________________________________________________________________________________________
