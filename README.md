@@ -5,11 +5,13 @@
 ### Feb-Mar, 2021
 ### Ivana Ganeva
 
+_____________________________________________________________________________________________
 #### Data Source:
 Nancy Fullman, Bree Bang-Jensen, Grace Reinke, Beatrice Magistro, Rachel Castellano, Megan Erickson, Rebecca Walcott, Carolyn Dapper, Kenya Amano, John Wilkerson, and Christopher Adolph. "State-level social distancing policies in response to COVID-19 in the US". Version 1.117, February 17, 2021. http://www.covid19statepolicy.org
+_____________________________________________________________________________________________
 
 #### Updates (April onwards):
-
+_____________________________________________________________________________________________
 ##### 26/04
 o Adjusted the codes to work with the additional information on the District of Columbia which was added in the last data set updates. 
 
@@ -23,7 +25,7 @@ o Need to complete first the aux_fun_chains_START_fill.
 
 o Saved all relevant data sets (up-to-date) in the Environment_uptil_EELJ_26_April.RData file for faster loading.
 
-
+_____________________________________________________________________________________________
 ##### 30/04
 o Completed the aux_fun_chains_START_fill function. It fills the final data frame output (per state, per policy type) with the information on all starting policies.
 
@@ -37,7 +39,7 @@ o Improvements made on the EDA function.
 
 o Need to adjust output for policy-state combinations so that there are the 'normal-world' values for dates before the policy chain commencements in the respective measures.
 
-
+_____________________________________________________________________________________________
 ##### 05/05
 o Found an issue with the encoding of the state of Hawaii: discrepancy between Wiki/original data and the one in the data set (fixed).
 
@@ -49,6 +51,7 @@ o Ran the functions on all state-policies combinations and saved the outputs in 
 
 o Saved all relevant data sets (up-to-date) in the Environment_uptil_EELJ_05_May.RData file for faster loading.
 
+_____________________________________________________________________________________________
 ##### 11/05
 o Completed the time dimensionality in the FILL_function.
 
@@ -58,6 +61,7 @@ o After the completion of the FILL_function, probably need to split it into smal
 
 o Completed the introduction of the VaccineExempt dimensionality.
 
+_____________________________________________________________________________________________
 ##### 16/05
 o Completed the FILL_function.
 
@@ -69,6 +73,7 @@ o A couple of notes on filtering in the future: potentially need to filter on en
 
 o Addressed the issue of uncoded policy changes, began initial work on text-mining in order to assimilate these instances: at most 15% of data is uncoded.
 
+_____________________________________________________________________________________________
 ##### 27/05
 o Improvements made on the SchoolClose policy measure (needs to be completed), text mining, analyze and structure all possible cases.
 
@@ -86,6 +91,7 @@ o Began working on the aggregation part (simpler than the county level, equivale
 
 o Saved all relevant data sets (up-to-date) in the Environment_uptil_EELJ_27_May.RData file for faster loading.
 
+_____________________________________________________________________________________________
 ##### 31/05
 o Completed the text mining process for the School Close variable.
 
@@ -95,6 +101,7 @@ o Fixed minor issues with the main FILL_function.
 
 o Saved the SchoolClose data set at the county level within the SchoolClose_COUNTY_lvl.RData file, as per request.
 
+_____________________________________________________________________________________________
 ##### 01/06
 o Added aggregation of the SchoolClose variable at the State level, based on what fraction of the population is affected by the measures implemented at the county-level.
 
@@ -108,8 +115,8 @@ o Some important notes for the transferring between categorical to numeric value
 
 o Saved all other relevant data sets (up-to-date) in the Environment_uptil_EELJ_1_June.RData file for faster loading.
 
-#### Generalized list of the things which need improvement/attention:
 _____________________________________________________________________________________________
+#### Generalized list of the things which need improvement/attention:
 
 Task/Issue | STATUS
 | :--- | ---:
