@@ -73,27 +73,30 @@ o Some important notes for the transferring between categorical to numeric value
 
 #### Generalized list of the things which need improvement/attention:
 _____________________________________________________________________________________________
--> District of Columbia, counties? ---------------------------------------------- DONE
--> VaccineExempt dimensionality ------------------------------------------------- DONE
--> Fill for dates prior to first measure in a policy set being introduced ------- DONE
--> Encoding for Hawaii: it is seen as Hawai'i in the county_df originally ------- DONE
--> Finalize the aux_fun_chains_START_fill --------------------------------------- DONE
--> Improve the FILL_function ---------------------------------------------------- DONE
--> Complete v.1 of FILL_function ------------------------------------------------ DONE
--> SchoolClose: Public vs. Private, basic text mining --------------------------- DONE
--> Fix minor issues with the policy_chains function ----------------------------- DONE
--> Finalize the EDA function ---------------------------------------------------- DONE
--> Ends/extends cases removed completely (assimilated) -------------------------- DONE
--> Uncoded policy changes, text mining ------------------------------------------ IN PROGRESS
--> Alternatively, filtering for uncoded policy changes (15%) -------------------- IN PROGRESS
--> Filtering for end_date_obtained, or for others in the policy chains df ------- IN PROGRESS
--> (Interactive) plotting function: maps and timelines of policy changes -------- IN PROGRESS
--> Structuring the codes within a single project -------------------------------- IN PROGRESS
--> Simplifying/Splitting the FILL_function into smaller parts ------------------- IN PROGRESS
--> If necessary, add some rm(), gc() lines after that, memory-wise improvement -- TBD
--> Bars/Restaurants/BusinessesClose: usual working hours, function file --------- TBD
--> Coding of St. Clair, Alabama: at some points it is with a dot ---------------- TBD
--> Check for similar issues, basic text mining (Jaccard Similarity?) ------------ TBD
--> Cases of Leaves & Joins, should add these to uncoded changes porbably -------- TBD
--> Aggregation/Adding a filter for the state level instead ---------------------- DONE
+
+Task/Issue | STATUS
+| :--- | ---:
+District of Columbia, counties? | DONE
+VaccineExempt dimensionality | DONE
+Fill for dates prior to first measure in a policy set being introduced | DONE
+Encoding for Hawaii: it is seen as Hawai'i in the county_df originally | DONE
+Finalize the aux_fun_chains_START_fill | DONE
+Improve the FILL_function | DONE
+Complete v.1 of FILL_function | DONE
+SchoolClose: Public vs. Private, basic text mining | DONE
+Fix minor issues with the policy_chains function | DONE
+Finalize the EDA function | DONE
+Ends/extends cases removed completely (assimilated) | DONE
+Uncoded policy changes, text mining | IN PROGRESS
+Alternatively, filtering for uncoded policy changes (15%) | IN PROGRESS
+Filtering for end_date_obtained, or for others in the policy chains df | IN PROGRESS
+(Interactive) plotting function: maps and timelines of policy changes | IN PROGRESS
+Structuring the codes within a single project | IN PROGRESS
+Simplifying/Splitting the FILL_function into smaller parts | IN PROGRESS
+If necessary, add some rm(), gc() lines after that, memory-wise improvement | TBD
+Bars/Restaurants/BusinessesClose: usual working hours, function file | TBD
+Coding of St. Clair, Alabama: at some points it is with a dot | TBD
+Check for similar issues, basic text mining (Jaccard Similarity?) | TBD
+Cases of Leaves & Joins, should add these to uncoded changes porbably | TBD
+Aggregation/Adding a filter for the state level instead | DONE
 _____________________________________________________________________________________________
