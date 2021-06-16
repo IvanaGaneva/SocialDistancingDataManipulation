@@ -642,7 +642,7 @@ df_EmergDec_STATE <- df_EmergDec_STATE %>%
   group_by(State, Date) %>%
   summarize(frac_state_pop_with_EmergDec = sum(EmergDec_frac_pop))
 
-save(df_EmergDec, file = 'EmergDec_STATE_lvl.RData')
+save(df_EmergDec_STATE, file = 'EmergDec_STATE_lvl.RData')
 
 
 
