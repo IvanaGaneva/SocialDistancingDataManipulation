@@ -262,7 +262,7 @@ rm(vec_counties_mentioned, vec_counties_mentioned_changed); gc()
 # --------------------------------------------------------------------------
 # 2.6. Saving these two files into the working directory for simpler loading in the future
 save(counties_df, states_df, COVID_measures_df, COVID_measures_df_REVIEWED,
-     file = 'saved_data_frames.RData')
+     file = paste0(Sys.Date(), '_saved_data_frames.RData'))
 # --------------------------------------------------------------------------
 # 2.7. Loading the data directly
 # WARNING: this does not guarantee up-to-date information, one needs to check the date of the file
@@ -315,7 +315,8 @@ POLICY_CHAINS_all_states_df <- POLICY_CHAINS_all_states_df %>%
 length(unique(POLICY_CHAINS_all_states_df$StatePostal))
   # 51 states, as expected!
   # as opposed to the 43 states present in the data in March
-save(POLICY_CHAINS_all_states_df, file = 'saved_policy_chains_all_states.RData')
+save(POLICY_CHAINS_all_states_df, file = paste0(Sys.Date(),
+                                                '_saved_policy_chains_all_states.RData'))
   # saving for future use / faster extraction
 # load('saved_policy_chains_all_states.RData')
 # --------------------------------------------------------------------------
@@ -356,7 +357,7 @@ source('EELJ_function.R')
 
 # creating a large df with the result from applying this function on all 
 # possible states/measures separately (then rbind):
-# --- last done 27/05/2021
+# --- last done 15/06/2021
 # --- uncomment lines below to re-run:
 
 # first_state_df <- COVID_measures_df_REVIEWED$StateName[1]
@@ -397,25 +398,28 @@ source('EELJ_function.R')
 # rm(first_state_df, first_policy_df, i, j, p)
 # gc()
 # 
-# -------------------------------------------------
+# # -------------------------------------------------
 # # Comparing if consistent with previous data saved:
 # new <- EELJ_all_states_policies_df
 # load('saved_EELJ_all_states_policies.RData')
 # old <- EELJ_all_states_policies_df
 # dplyr::all_equal(old, new)
-# -------------------------------------------------
+# # -------------------------------------------------
 # # Making choices based on that output:
 # EELJ_all_states_policies_df <- new
 # rm(old, new); gc()
 # 
 # # Saving the data frame for future use:
 # save(EELJ_all_states_policies_df,
-#      file = 'saved_EELJ_all_states_policies.RData')
-# 
-# # environment saved up until here:
-# # save.image(file = 'Environment_uptil_EELJ_27_May.RData')
-# # save.image(file = 'Environment_uptil_EELJ_31_May.Rdata')
-# # save.image(file = 'Environment_uptil_EELJ_1_June.RData')
+#      file = paste0(Sys.Date(),'_saved_EELJ_all_states_policies.RData'))
+
+
+
+# ============================================================================================
+# ENVIRONMENT SAVED UP UNTIL HERE:
+save.image(file = paste0('Environment_until_EELJ_',
+                         Sys.Date(),
+                         '.RData'))
 
 
 # Some EDA for the EELJ df which captures heterogeneity across policy measures:
@@ -438,6 +442,17 @@ EELJ_all_states_policies_df %>%
 # --------------------------------------------------------------------------
 source('PolicyType.R')
 # works for the 16 policy measure variables as of mid-May, 2021
+
+# these are 18 as of mid-June, 2021:
+# health business & school safety
+# ignored so far: data for all states not yet available
+
+# Types of policies:
+# 1) Binary (bin)
+# 2) SchoolClose (cat_sch)
+# 3) Businesses Close (cat_bus)
+# 4) Number (numb)
+# 5) Mandatory/Recommended (cat_mand)
 
 # --------------------------------------------------------------------------
 
@@ -486,16 +501,18 @@ for(i in 2:length(all_states_considered)){
                            EmergDec_function_for_state(state_name = all_states_considered[i]))
 }
 
+
+
 # new <- df_EmergDec
 # load('saved_EmergDec_all_states.RData')
 # old <- df_EmergDec
 # dplyr::all_equal(new, old)
-#
+
 # df_EmergDec <- new
 # rm(new, old); gc()
 
 # Saving this df into a separate file:
-save(df_EmergDec, file = 'saved_EmergDec_all_states.RData')
+save(df_EmergDec, file = paste0(Sys.Date(), '_saved_EmergDec_all_states.RData'))
 
 
 
@@ -533,7 +550,7 @@ for(i in 2:length(all_states_considered)){
 }
 
 # Saving into an RData object:
-# save(df_SchoolClose, file = 'saved_SchoolClose_all_states_1_June.Rdata')
+# save(df_SchoolClose, file = paste0(Sys.Date(), 'saved_SchoolClose_all_states.Rdata'))
 
 # -------------------------------------------------------------------------------
 # Subsetting for mandatory only:
@@ -562,10 +579,10 @@ df_SchoolClose_mandate <- df_SchoolClose %>%
 
 table(df_SchoolClose_mandate$Public_Schools)
 
-# save(df_SchoolClose_mandate, file = 'SchoolClose_COUNTY_lvl.Rdata')
+# save(df_SchoolClose_mandate, file = 'SchoolClose_COUNTY_lvl.RData')
 
 
-# save(df_SchoolClose_County_lvl_Mandatory_only, 
+# save(df_SchoolClose_County_lvl_Mandatory_only,
 #      file = 'SchoolClose_County_Mandate_PRELIM.RData')
 
 # load('SchoolClose_County_Mandate_PRELIM.RData')
@@ -580,7 +597,7 @@ df_SchoolClose_mandate_STATE <- df_SchoolClose_mandate %>%
                         labels = c('0', '0.5', '1'))) %>%
   spread(schools_type, value)
 
-county_data <- county_data %>%
+county_data <- counties_df %>%
   group_by(State) %>%
   mutate(StatePopulation2019 = sum(Population2019)) %>%
   ungroup()
@@ -603,7 +620,30 @@ df_SchoolClose_mandate_STATE <- df_SchoolClose_mandate_STATE %>%
   summarize(frac_state_pop_with_closed_private_sch = sum(private_sch_frac_pop),
          frac_state_pop_with_closed_public_sch = sum(public_sch_frac_pop))
 
-# save(df_SchoolClose_mandate_STATE, file = 'SchoolClose_STATE_lvl.Rdata')
+# save(df_SchoolClose_mandate_STATE, file = 'SchoolClose_STATE_lvl.RData')
+
+# ---------
+# EmergDec:
+
+# saving the EmergeDec at the county lvl:
+save(df_EmergDec, file = 'EmergDec_COUNTY_lvl.RData')
+
+# and at the state lvl:
+df_EmergDec_STATE <- df_EmergDec %>%
+  # adding the population as of 2019 from the county df:
+  left_join(county_data, by = c('State', 'County')) %>%
+  # obtaining for what percentage of the population within the whole state
+  # measures for public schools applied:
+  mutate(county_pop_frac_of_state_pop = Population2019/StatePopulation2019)
+
+# group by date and state now
+df_EmergDec_STATE <- df_EmergDec_STATE %>%
+  mutate(EmergDec_frac_pop = EmergDec*county_pop_frac_of_state_pop) %>%
+  group_by(State, Date) %>%
+  summarize(frac_state_pop_with_EmergDec = sum(EmergDec_frac_pop))
+
+save(df_EmergDec, file = 'EmergDec_STATE_lvl.RData')
+
 
 
 #                                   END OF MAIN PART OF CODES
@@ -659,6 +699,3 @@ COVID_measures_df_REVIEWED %>%
 # obtains the mandatory EmergDec dummy variable value
 
 # --------------------------------------------------------------------------
-
-
-
