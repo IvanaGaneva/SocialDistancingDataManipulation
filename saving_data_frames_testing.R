@@ -192,9 +192,7 @@ names(list_bin_policies_STATE) <- vec_bin_policies
 # FullClose > TakeAwayOnly > OutdoorOnly > IndoorAllowed
 
 vec_bus_policies <- c('BarRestrict', 'RestaurantRestrict',
-                      #'OtherBusinessClose', 
-                      # excluding this for now
-                      'NEBusinessClose')
+                      'OtherBusinessClose',  'NEBusinessClose')
 
 # will put this inside a function:
 # +++++++++++++++++++++++++++++++++++++++++++
@@ -202,7 +200,7 @@ make_bus_df_county_lvl <- function(policy){
   
   # for testing/construction:
   # ------------------------
-  # policy <- 'BarRestrict'
+  # policy <- 'OtherBusinessClose'
   # ------------------------
   
   df_temp <- FILL_function(data_measures = COVID_measures_df_REVIEWED,
@@ -251,10 +249,14 @@ names(list_bus_policies) <- vec_bus_policies
 # When running with OtherBusinessClose,
 
 # Some warnings produced: for the case of OtherBusinessClose, no starting policies in the policy
-# chains for 27 states!
+# chains for 27 states! -> FIXED!
 
 # Working on this issue
+# fixed for OtherBusClose:
 # OtherBusClose_test <- make_bus_df_county_lvl('OtherBusinessClose')
+
+# NEBusinessClose_test <- make_bus_df_county_lvl('NEBusinessClose')
+
 # +++++++++++++++++++++++++++++++++++++++++++
 
 # +++++++++++++++++++++++++++++++++++++++++++
@@ -308,6 +310,97 @@ for(j in 1:length(vec_bus_policies)){
 
 names(list_bus_policies_STATE) <- vec_bus_policies
 
+# ==========================================================================
+# For the cat_mand variable of PublicMaskLevel:
+
+# i. county level
+df_PublicMaskLevel <- FILL_function(data_measures = COVID_measures_df_REVIEWED,
+                        county_data = counties_df,
+                        state_name = 'Alabama',
+                        policy_measure = 'PublicMask',
+                        not_vec = c(0, NA))
+
+for(i in 2:length(all_states_considered)){
+  df_PublicMaskLevel <- bind_rows(df_PublicMaskLevel,
+                               FILL_function(data_measures = COVID_measures_df_REVIEWED,
+                                             county_data = counties_df,
+                                             state_name = all_states_considered[i],
+                                             policy_measure = 'PublicMask',
+                                             not_vec = c(0, NA)))
+}
+
+# filtering/changing for mandate already done here!
+df_PublicMaskLevel <- df_PublicMaskLevel %>%
+  dplyr::select(1:4) %>%
+  rename(PublicMaskLevel = policy_measure_var_main)
+
+
+# # saving the df_PublicMaskLevel at the county lvl:
+# save(df_PublicMaskLevel, file = 'PublicMask_COUNTY_lvl.RData')
+
+
+df_PublicMaskLevel_STATE <- df_PublicMaskLevel %>%
+  # adding the population as of 2019 from the county df:
+  left_join(county_data, by = c('State', 'County')) %>%
+  # obtaining for what percentage of the population within the whole state
+  # measures for public schools applied:
+  mutate(county_pop_frac_of_state_pop = Population2019/StatePopulation2019)  
+
+colnames(df_PublicMaskLevel_STATE)[4] <- 'POLICYNAMEWILLBEHERE'
+
+# Similarly to SchoolClose:
+df_PublicMaskLevel_STATE <- df_PublicMaskLevel_STATE %>%
+  mutate(POLICYNAMEWILLBEHERE = factor(POLICYNAMEWILLBEHERE,
+                                       levels = c('Mandate3',
+                                                  'Mandate2',
+                                                  'Mandate1',
+                                                  'Special_Recommend',
+                                                  'NotMentioned'),
+                                       labels = c('1', '0.7', '0.4', '0.1', '0')))
+
+# grouping by date and state now:
+df_PublicMaskLevel_STATE <- df_PublicMaskLevel_STATE %>%
+  mutate(POLICYNAMEWILLBEHERE = as.numeric(as.character(POLICYNAMEWILLBEHERE))) %>%
+  mutate(POLICYNAMEWILLBEHERE_frac_pop = POLICYNAMEWILLBEHERE*county_pop_frac_of_state_pop) %>%
+  group_by(State, Date) %>%
+  summarize(fract_state_pop_with_POLICYNAMEWILLBEHERE = sum(POLICYNAMEWILLBEHERE_frac_pop))
+
+colnames(df_PublicMaskLevel_STATE)[3] <- paste0('frac_state_pop_with_', 'PublicMaskLevel_imposed')
+
+# save(df_PublicMaskLevel_STATE, file = paste0('PublicMask', '_STATE_lvl.RData'))
 
 
 
+
+# ==========================================================================
+# For the numeric variable of GathRestrict:
+
+# i. county level
+df_GathRestrict <- FILL_function(data_measures = COVID_measures_df_REVIEWED,
+                                  county_data = counties_df,
+                                  state_name = 'Alabama',
+                                  policy_measure = 'GathRestrict',
+                                  not_vec = c(0, NA)) %>%
+  mutate(across(everything(), as.character))
+
+for(i in 2:length(all_states_considered)){
+  df_GathRestrict <- bind_rows(df_GathRestrict,
+                                FILL_function(data_measures = COVID_measures_df_REVIEWED,
+                                              county_data = counties_df,
+                                              state_name = all_states_considered[i],
+                                              policy_measure = 'GathRestrict',
+                                              not_vec = c(0, NA)) %>%
+                                 mutate(across(everything(), as.character)))
+}
+
+# filling/chaning for mandate:
+df_GathRestrict <- df_GathRestrict
+df_GathRestrict[df_GathRestrict$mandate == '0' | is.na(df_GathRestrict$mandate), 8:11] <- 'No limit'
+  
+df_GathRestrict <- df_GathRestrict %>%
+  dplyr::select(State, County,
+                Date, starts_with('lim_')) %>%
+  mutate(Date = as.Date(Date))
+
+# # saving the GathRestrict at the county lvl:
+# save(df_GathRestrict, file = 'GathRestrict_COUNTY_lvl.RData')

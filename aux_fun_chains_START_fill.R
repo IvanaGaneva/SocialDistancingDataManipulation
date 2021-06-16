@@ -149,7 +149,7 @@ aux_fun_chains_START_fill <- function(starting_policy,
       } else{
         if(p_type == 'numb'){
           # ======= THIS IS FOR THE GathRestrict VARIABLE
-          df_fill$policy_measure_var_main[whcih_loc_date_vec] <- 'GathRestrict: see limit var-s'
+          df_fill$policy_measure_var_main[which_loc_date_vec] <- 'GathRestrict: see limit var-s'
         } else{
           if(p_type == 'cat_mand'){
             # ===== THIS IS FOR THE PublicMask VARIABLE
