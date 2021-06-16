@@ -2,7 +2,7 @@
 
 # Types of policies:
 # 1) Binary (bin)
-# 2) SchoolClose (cat_sch)
+# 2) SchoolClose (cat_sch) -> DONE
 # 3) Businesses Close (cat_bus)
 # 4) Number (numb)
 # 5) Mandatory/Recommended (cat_mand)
@@ -127,11 +127,62 @@ make_bin_df_county_lvl <- function(policy){
                                             policy_measure_var_main)) %>%
     # NA-s means these dates occur after the last policy ended => replace with usual value
     # non-mandatory in THIS data set also translates to non-existent policy
-    dplyr::select(1:4) %>%
+    dplyr::select(1:4)
     # selecting the relevant variables only
-    rename(policy_measure_var_main)
+  
+  colnames(df_temp)[4] <- policy
+  
+  save(df_temp, file = paste0(policy, '_COUNTY_lvl.RData'))
   
   return(df_temp)
 }
 
-test_StayAtHome <- make_bin_df_county_lvl('StayAtHome')
+# test_StayAtHome <- make_bin_df_county_lvl('StayAtHome') -> OK
+# test_BusinessMask <- make_bin_df_county_lvl('BusinessMask') -> OK
+# test_SchoolMask <- make_bin_df_county_lvl('SchoolMask') -> OK
+
+
+list_bin_policies <- list()
+
+for(j in 1:length(vec_bin_policies)){
+  list_bin_policies[[j]] <- make_bin_df_county_lvl(vec_bin_policies[j])
+}
+
+names(list_bin_policies) <- vec_bin_policies
+
+# --------------------------------------------------------------------------
+# Now, a function to transform the county-level data to state-level data:
+make_bin_df_state_lvl <- function(policy){
+  df_temp <- list_bin_policies[[policy]] %>%
+    # adding the population as of 2019 from the county df:
+    left_join(county_data, by = c('State', 'County')) %>%
+    # obtaining for what percentage of the population within the whole state
+    # measures for public schools applied:
+    mutate(county_pop_frac_of_state_pop = Population2019/StatePopulation2019)  
+  
+  colnames(df_temp)[4] <- 'POLICYNAMEWILLBEHERE'
+  
+  # grouping by date and state now:
+  df_temp <- df_temp %>%
+    mutate(POLICYNAMEWILLBEHERE = as.numeric(POLICYNAMEWILLBEHERE)) %>%
+    mutate(POLICYNAMEWILLBEHERE_frac_pop = POLICYNAMEWILLBEHERE*county_pop_frac_of_state_pop) %>%
+    group_by(State, Date) %>%
+    summarize(fract_state_pop_with_POLICYNAMEWILLBEHERE = sum(POLICYNAMEWILLBEHERE_frac_pop))
+  
+  colnames(df_temp)[3] <- paste0('frac_state_pop_with_', policy)
+
+  save(df_temp, file = paste0(policy, '_STATE_lvl.RData'))
+  
+  return(df_temp)
+}
+
+list_bin_policies_STATE <- list()
+
+for(j in 1:length(vec_bin_policies)){
+  list_bin_policies_STATE[[j]] <- make_bin_df_state_lvl(vec_bin_policies[j])
+}
+
+names(list_bin_policies_STATE) <- vec_bin_policies
+# ==========================================================================
+
+# Now, proceding with the cat_bus variables (4 of them)

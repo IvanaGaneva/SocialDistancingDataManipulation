@@ -39,11 +39,10 @@ FILL_function <- function(data_measures = COVID_measures_df_REVIEWED,
   # -------------------------------------------
   # data_measures <- COVID_measures_df_REVIEWED
   # county_data <- counties_df
-  # state_name <- 'Utah'
-  # policy_measure <- 'SchoolClose'
+  # state_name <- 'Michigan'
+  # policy_measure <- 'SchoolMask'
   # not_vec <- c(0, NA)
   # -------------------------------------------
-  
   
   policy_type_usual_value <- policy_type_function(policy_measure)
   policy_type <- policy_type_usual_value[1]
@@ -139,11 +138,22 @@ FILL_function <- function(data_measures = COVID_measures_df_REVIEWED,
             
             # -------------------------------------------------------------------------------------
             # Obtaining the dates for which this measure holds:
-            pc_policy_dates <- seq(policy_state_simplified$begins[row_pc_df],
-                                   policy_state_simplified$finishes[row_pc_df],
-                                   by = 'days')
+            if(policy_state_simplified$begins[row_pc_df] > 
+               policy_state_simplified$finishes[row_pc_df]){
+              # WARNING: THIS SHOULD NOT HAPPEN, BUT THERE APPEARS TO BE MISTAKE IN THE ENTRIES OF
+              #          A FEW POLICY - THE TWO DATES ARE INTERCHANGED
+              #          TAKE FOR EXAMPLE POLICY # MI0168
+              pc_policy_dates <- seq(policy_state_simplified$finishes[row_pc_df],
+                                     policy_state_simplified$begins[row_pc_df],
+                                     by = 'days')
+            } else{
+              # the normal input scenario
+              pc_policy_dates <- seq(policy_state_simplified$begins[row_pc_df],
+                                     policy_state_simplified$finishes[row_pc_df],
+                                     by = 'days')
+            }
             
-            last_day_pc_policy <- policy_state_simplified$finishes[row_pc_df]
+            last_day_pc_policy <- pc_policy_dates[length(pc_policy_dates)]
             first_day_pc_policy <- pc_policy_dates[1]
             
             # -------------------------------------------------------------------------------------
@@ -158,8 +168,15 @@ FILL_function <- function(data_measures = COVID_measures_df_REVIEWED,
                 # i.e. if this policy joins a previous one, and locations are specified
                 # joins_id_row <- which(policy_state_simplified$PID == policy_state_simplified$Joins[row_pc_df])
                   # this is the past policy it joins
-                joins_id_row <- which(policy_state_simplified$PID %in% c(policy_state_simplified$Joins[row_pc_df],
-                                                                         policy_state_simplified$Expands[row_pc_df]))[1]
+                joins_id_row <- c(policy_state_simplified$Joins[row_pc_df],
+                                  policy_state_simplified$Expands[row_pc_df]) %>%
+                  na.omit()
+                joins_id_row <- joins_id_row[1]
+                joins_id_row <- which(policy_state_simplified$PID == joins_id_row)
+                
+                if(length(joins_id_row) == 0){
+                  joins_id_row <- max(which(changing_policies == pc), 1)
+                }
                 
                 if(policy_state_simplified$SWGeo[joins_id_row] == 1){
                   if(policy_type != 'cat_sch'){
