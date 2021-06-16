@@ -183,6 +183,131 @@ for(j in 1:length(vec_bin_policies)){
 }
 
 names(list_bin_policies_STATE) <- vec_bin_policies
-# ==========================================================================
 
+
+# ==========================================================================
 # Now, proceding with the cat_bus variables (4 of them)
+
+# values:
+# FullClose > TakeAwayOnly > OutdoorOnly > IndoorAllowed
+
+vec_bus_policies <- c('BarRestrict', 'RestaurantRestrict',
+                      #'OtherBusinessClose', 
+                      # excluding this for now
+                      'NEBusinessClose')
+
+# will put this inside a function:
+# +++++++++++++++++++++++++++++++++++++++++++
+make_bus_df_county_lvl <- function(policy){
+  
+  # for testing/construction:
+  # ------------------------
+  # policy <- 'BarRestrict'
+  # ------------------------
+  
+  df_temp <- FILL_function(data_measures = COVID_measures_df_REVIEWED,
+                           county_data = counties_df,
+                           state_name = 'Alabama',
+                           policy_measure = policy,
+                           not_vec = c(0, NA))
+  for(i in 2:length(all_states_considered)){
+    df_temp <- bind_rows(df_temp,
+                         FILL_function(data_measures = COVID_measures_df_REVIEWED,
+                                       county_data = counties_df,
+                                       state_name = all_states_considered[i],
+                                       policy_measure = policy,
+                                       not_vec = c(0, NA)))
+  }
+  
+  # Subsetting for mandatory only:
+  df_temp <- df_temp %>%
+    mutate(policy_measure_var_main = ifelse(is.na(mandate) | mandate == 0,
+                                            policy_type_function(policy)[2],
+                                            policy_measure_var_main)) %>%  
+    # NA-s means these dates occur after the last policy ended => replace with usual value
+    # non-mandatory in THIS data set also translates to non-existent policy
+    dplyr::select(1:4)
+  # Selecting the relevant variables only
+
+  colnames(df_temp)[4] <- policy
+  
+  save(df_temp, file = paste0(policy, '_COUNTY_lvl.RData'))
+  
+  return(df_temp)
+}
+
+
+# Making the list:
+list_bus_policies <- list()
+
+for(j in 1:length(vec_bus_policies)){
+  list_bus_policies[[j]] <- make_bus_df_county_lvl(vec_bus_policies[j])
+}
+
+names(list_bus_policies) <- vec_bus_policies
+
+
+# +++++++++++++++++++++++++++++++++++++++++++
+# When running with OtherBusinessClose,
+
+# Some warnings produced: for the case of OtherBusinessClose, no starting policies in the policy
+# chains for 27 states!
+
+# Working on this issue
+# OtherBusClose_test <- make_bus_df_county_lvl('OtherBusinessClose')
+# +++++++++++++++++++++++++++++++++++++++++++
+
+# +++++++++++++++++++++++++++++++++++++++++++
+# Same thing for NEBusinessClose but for fewer states.
+
+# NEBusinessClose_test <- make_bus_df_county_lvl('NEBusinessClose')
+# +++++++++++++++++++++++++++++++++++++++++++
+
+
+# --------------------------------------------------------------------------
+# Now, a function to transform the county-level data to state-level data:
+make_bus_df_state_lvl <- function(policy){
+  
+  df_temp <- list_bus_policies[[policy]] %>%
+    # adding the population as of 2019 from the county df:
+    left_join(county_data, by = c('State', 'County')) %>%
+    # obtaining for what percentage of the population within the whole state
+    # measures for public schools applied:
+    mutate(county_pop_frac_of_state_pop = Population2019/StatePopulation2019)  
+  
+  colnames(df_temp)[4] <- 'POLICYNAMEWILLBEHERE'
+  
+  # Similarly to SchoolClose:
+  df_temp <- df_temp %>%
+    mutate(POLICYNAMEWILLBEHERE = factor(POLICYNAMEWILLBEHERE,
+                                         levels = c('FullClose',
+                                                    'TakeawayOnly',
+                                                    'OutdoorOnly',
+                                                    'IndoorAllowed'),
+                                         labels = c('1', '0.75', '0.5', '0')))
+
+  # grouping by date and state now:
+  df_temp <- df_temp %>%
+    mutate(POLICYNAMEWILLBEHERE = as.numeric(as.character(POLICYNAMEWILLBEHERE))) %>%
+    mutate(POLICYNAMEWILLBEHERE_frac_pop = POLICYNAMEWILLBEHERE*county_pop_frac_of_state_pop) %>%
+    group_by(State, Date) %>%
+    summarize(fract_state_pop_with_POLICYNAMEWILLBEHERE = sum(POLICYNAMEWILLBEHERE_frac_pop))
+  
+  colnames(df_temp)[3] <- paste0('frac_state_pop_with_', policy)
+  
+  save(df_temp, file = paste0(policy, '_STATE_lvl.RData'))
+  
+  return(df_temp)
+}
+
+list_bus_policies_STATE <- list()
+
+for(j in 1:length(vec_bus_policies)){
+  list_bus_policies_STATE[[j]] <- make_bus_df_state_lvl(vec_bus_policies[j])
+}
+
+names(list_bus_policies_STATE) <- vec_bus_policies
+
+
+
+

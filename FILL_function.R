@@ -39,8 +39,8 @@ FILL_function <- function(data_measures = COVID_measures_df_REVIEWED,
   # -------------------------------------------
   # data_measures <- COVID_measures_df_REVIEWED
   # county_data <- counties_df
-  # state_name <- 'Michigan'
-  # policy_measure <- 'SchoolMask'
+  # state_name <- 'California'
+  # policy_measure <- 'OtherBusinessClose'
   # not_vec <- c(0, NA)
   # -------------------------------------------
   
@@ -108,11 +108,57 @@ FILL_function <- function(data_measures = COVID_measures_df_REVIEWED,
       starting_policies <- setdiff(policy_state_simplified$PID, policy_state_changes$PID)
         # will be running the auxiliary function for the beginnings of chains on these policy measures
       
+      # if(length(starting_policies) == 0){
+      #   # Before, this resulted in a simple warning:
+      #   
+      #   # print(paste0('Check data inputs - no starting policies in this policy chain!',
+      #   #              ' - CASE OF ', state_name))
+      #   # return(df_to_fill)
+      #   
+      #   # However, for OtherBusinessClose variable and the case of 27 states,
+      #   # starting policies are missing!
+      #   
+      #   extract_first_non_missing_row <- policy_state_simplified %>%
+      #     arrange(DateIssued) %>%
+      #     filter(!(is.na(Expands)) | !(is.na(Eases)) |
+      #              !(is.na(Joins)) | !(is.na(Leaves)))
+      #   extract_first_non_missing_row <- extract_first_non_missing_row[1,]
+      #   
+      #   first_row_policy_link <- c(extract_first_non_missing_row$Expands,
+      #                              extract_first_non_missing_row$Joins,
+      #                              extract_first_non_missing_row$Eases,
+      #                              extract_first_non_missing_row$Leaves)
+      #   first_row_policy_link <- first_row_policy_link[!is.na(first_row_policy_link)]
+      #   
+      #   if(length(first_row_policy_link) != 0){
+      #     first_row_policy_link <- first_row_policy_link[1]
+      #     colnames(data_measures)[1] <- 'PID'
+      #     
+      #     row_to_add <- filter(data_measures, 
+      #                          PID == first_row_policy_link)
+      #     policy_state_simplified <- policy_state_simplified %>%
+      #       bind_rows(row_to_add) %>%
+      #       arrange(DateIssued)
+      #     
+      #     policy_state_simplified$begins[1] <- max(policy_state_simplified$DateEnacted[1],
+      #                                              policy_state_simplified$DateIssued[1], na.rm = T)
+      #     policy_state_simplified$finishes[1] <- min(policy_state_simplified$DateExpiry[1],
+      #                                                policy_state_simplified$DateEnded[1],
+      #                                                as.Date('2021-12-31'),
+      #                                                na.rm = T)
+      #     
+      #     starting_policies <- setdiff(policy_state_simplified$PID, policy_state_changes$PID)
+      #   }
+      # 
+      # } 
+      
+      # ------------------------------------------------------------------------------------
+      # Checking again if there are still no starting policies after the above modification:
       if(length(starting_policies) == 0){
-        print(paste0('Check data inputs - no starting policies in this policy chain!',
-                     ' - CASE OF ', state_name))
-        return(df_to_fill)
-        # Ideally, if there are no data input mistakes, this should not occur!
+        # i.e. if no policy from another chain is present:
+          print(paste0('Check data inputs - no starting policies in this policy chain!',
+                        ' - CASE OF ', state_name))
+          return(df_to_fill)
       } else{
         for(ps in starting_policies){
           df_to_fill <- aux_fun_chains_START_fill(starting_policy = ps,
@@ -224,7 +270,7 @@ FILL_function <- function(data_measures = COVID_measures_df_REVIEWED,
                                           (df_to_fill$Date %in% pc_policy_dates))
             
             # -------------------------------------------------------------------------------------
-            # Now, ctually filling the instances in the data frame:
+            # Now, actually filling the instances in the data frame:
             if(policy_type == 'cat_sch'){
               # =========== THIS IS FOR THE SchoolClose VARIABLE
               if(is.na(policy_state_simplified$SchoolRestrictLevel[row_pc_df])){
@@ -293,7 +339,58 @@ FILL_function <- function(data_measures = COVID_measures_df_REVIEWED,
                 if(policy_type == 'cat_bus'){
                   # ======= THIS IS FOR THE BarRestrict, RestaurantRestrict, OtherBusinessClose and the
                   #                         NEBusinessClose VARIABLES
-                  df_to_fill$policy_measure_var_main[which_loc_date_vec] <- policy_state_simplified$BusinessRestrictLevel[row_pc_df]
+                  if(is.na(policy_state_simplified$BusinessRestrictLevel[row_pc_df])){
+                    # That is, if level is not present
+                    if(!(is.na(policy_state_simplified$Expands[row_pc_df]))|
+                       !(is.na(policy_state_simplified$Joins[row_pc_df]))){
+                      # i.e. if level is not present and policy is expansive w.r.t previous one
+                      related_policy_level <- policy_state_simplified$BusinessRestrictLevel[policy_state_simplified$PID %in%
+                                                                                              c(policy_state_simplified$Expands[row_pc_df],
+                                                                                                policy_state_simplified$Joins[row_pc_df])]
+                      related_policy_level <- related_policy_level[!(is.na(related_policy_level))]
+                      related_policy_level <- related_policy_level[1]
+                      
+                      if(related_policy_level %in% c('FullClose', 'TakeawayOnly')){
+                        policy_level_to_fill_with <- 'FullClose'
+                      } else{
+                        if(related_policy_level == 'OutdoorOnly'){
+                          policy_level_to_fill_with <- 'TakeawayOnly'
+                        } else{
+                          if(related_policy_level == 'IndoorAllowed'){
+                            policy_level_to_fill_with <- 'OutdoorOnly'
+                          }
+                        }
+                      }
+                    } else{
+                      if(!(is.na(policy_state_simplified$Eases[row_pc_df]))|
+                         !(is.na(policy_state_simplified$Leaves[row_pc_df]))){
+                        # i.e. if level is not present and policy is easing w.r.t previous one
+                        related_policy_level <- policy_state_simplified$BusinessRestrictLevel[policy_state_simplified$PID %in%
+                                                                                              c(policy_state_simplified$Eases[row_pc_df],
+                                                                                                policy_state_simplified$Leaves[row_pc_df])]
+                        related_policy_level <- related_policy_level[!(is.na(related_policy_level))]
+                        related_policy_level <- related_policy_level[1]
+                        
+                        if(related_policy_level %in% c('IndoorAllowed', 'OutdoorOnly')){
+                          policy_level_to_fill_with <- 'IndoorAllowed'
+                        } else{
+                          if(related_policy_level == 'TakeawayOnly'){
+                            policy_level_to_fill_with <- 'OutdoorOnly'
+                          } else{
+                            if(related_policy_level == 'FullClose'){
+                              policy_level_to_fill_with <- 'TakeawayOnly'
+                            }
+                          }
+                        }
+                      }
+                    }
+                  } else{
+                    # That is, if the level IS present:
+                    policy_level_to_fill_with <- policy_state_simplified$BusinessRestrictLevel[row_pc_df]
+                  }
+                  
+                  # Actually filling now:
+                  df_to_fill$policy_measure_var_main[which_loc_date_vec] <- policy_level_to_fill_with
                 } else{
                   if(policy_type == 'numb'){
                     # ======= THIS IS FOR THE GathRestrict VARIABLE
